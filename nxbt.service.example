@@ -1,0 +1,71 @@
+# NXBT systemd service – empfohlene Konfiguration für Raspberry Pi 3 Model B
+#
+# Installation:
+#   sudo cp nxbt.service.example /etc/systemd/system/nxbt.service
+#   # Passe User= und ExecStart= an deine Umgebung an
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable nxbt
+#   sudo systemctl start nxbt
+#
+# Logs anzeigen:
+#   journalctl -u nxbt -f
+
+[Unit]
+Description=NXBT Nintendo Switch Bluetooth Controller Bridge
+Documentation=https://github.com/Brikwerk/nxbt
+
+# Erst starten, wenn Bluetooth und Netzwerk wirklich bereit sind.
+# Verhindert Race-Conditions beim Boot auf dem Pi 3.
+After=bluetooth.service network-online.target
+Wants=bluetooth.service network-online.target
+
+# Falls bluetooth.service abstuerzt, auch NXBT beenden.
+BindsTo=bluetooth.service
+
+[Service]
+Type=simple
+
+# Benutzerkonto, das NXBT ausfuehrt.
+# Muss in der Gruppe 'bluetooth' sein: sudo usermod -aG bluetooth dfernandez
+User=dfernandez
+Group=bluetooth
+
+# Pfad zur aktivierten virtualenv-Installation.
+ExecStart=/home/dfernandez/nxbt-env/bin/nxbt webapp --ip 0.0.0.0 --port 8000
+
+# Kurze Wartezeit nach dem Systemstart, damit hci0 vollstaendig hochfahren kann.
+# Ohne diese Pause erscheint hci0 manchmal erst nach dem ersten NXBT-Startversuch.
+ExecStartPre=/bin/sleep 5
+
+WorkingDirectory=/home/dfernandez
+
+# Umgebungsvariablen – Pfad zur virtualenv sicherstellen
+Environment="PATH=/home/dfernandez/nxbt-env/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Neustart nur bei echten Fehlern, nicht bei sauberem Beenden (z. B. systemctl stop).
+# Restart=always wuerde den Pi bei Dauerfehler ueberladen.
+Restart=on-failure
+RestartSec=10
+
+# Maximal 5 Neustarts in 2 Minuten, danach aufgeben.
+# Verhindert Boot-Loops bei strukturellen Problemen (z. B. kein hci0).
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+# Logs nach stdout/stderr; journalctl -u nxbt zeigt alles.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nxbt
+
+# Harte Ressourcengrenzen fuer den Pi 3 (512 MB RAM).
+# Verhindert, dass NXBT das System bei Speicherleck haengen laesst.
+MemoryMax=128M
+MemorySwapMax=0
+
+# Sicherheits-Haertung (optional, kann Bluetooth-Zugriff beeinflussen –
+# testen und bei Bedarf auskommentieren).
+# PrivateTmp=yes
+# NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

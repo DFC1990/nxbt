@@ -4,46 +4,61 @@
         <title>NXBT Webapp</title>
         <link rel="icon" type="image/png" href="favicon.png"/>
         <link rel="stylesheet" type="text/css" href="css/main.css">
-
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <!-- display=optional: renders immediately with fallback, loads font non-blocking.
+             Critical on Pi without reliable internet – avoids 2-3 s render stall. -->
+        <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=optional">
+        <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=optional"></noscript>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <body>
         <header class="top-bar">
             <div class="top-bar-wrapper">
                 <div>
-                    <h1>NXBT</h1><div class="mono">v0.1.4</div>
+                    <div class="eyebrow">Nintendo Switch Controller Bridge</div>
+                    <h1>NXBT Control Studio</h1>
                 </div>
-                <div id="status-indicator" class="hidden surface-lighter">
-                    <div id="status-indicator-light" class="indicator-yellow"></div>
-                    <span id="status-indicator-text">Loading</span>
+                <div class="header-status-group">
+                    <div id="live-status-badge" class="status-pill status-pill-warning">Bereit</div>
+                    <div id="status-indicator" class="hidden surface-lighter">
+                        <div id="status-indicator-light" class="indicator-yellow"></div>
+                        <span id="status-indicator-text">Loading</span>
+                    </div>
                 </div>
             </div>
         </header>
 
         <main>
-            <section id="controller-selection">
-                <h1>Create a Controller</h1>
-                <div class="hidden surface controller-option" onclick="createJoyConL()">
-                    <div class="controller-option-img-wrapper">
-                        <img src="joyconl.svg" draggable="false">
-                    </div>
-                    Joy-Con (L)
+            <section id="controller-selection" class="hero-section surface">
+                <div class="hero-copy">
+                    <div class="section-kicker">Schnellstart</div>
+                    <h2>Controller bereitstellen</h2>
+                    <p>Starte eine neue Pro-Controller-Session und wechsle danach direkt in Makrosteuerung, Recorder und Live-Status.</p>
                 </div>
-                <div class="surface controller-option" onclick="createProController()">
-                    <div class="controller-option-img-wrapper">
-                        <img src="procon.svg" draggable="false">
+                <div class="controller-option-grid">
+                    <div class="hidden surface controller-option" onclick="createJoyConL()">
+                        <div class="controller-option-img-wrapper">
+                            <img src="joyconl.svg" draggable="false">
+                        </div>
+                        <span>Joy-Con (L)</span>
                     </div>
-                    Pro Controller
-                </div>
-                <div class="hidden surface controller-option" onclick="createJoyConR()">
-                    <div class="controller-option-img-wrapper">
-                        <img src="joyconr.svg" draggable="false">
+                    <div class="surface controller-option controller-option-primary" onclick="createProController()">
+                        <div class="controller-option-img-wrapper">
+                            <img src="procon.svg" draggable="false">
+                        </div>
+                        <span>Pro Controller</span>
                     </div>
-                    Joy-Con (R)
+                    <div class="hidden surface controller-option" onclick="createJoyConR()">
+                        <div class="controller-option-img-wrapper">
+                            <img src="joyconr.svg" draggable="false">
+                        </div>
+                        <span>Joy-Con (R)</span>
+                    </div>
                 </div>
             </section>
 
-            <section id="loader" class="surface hidden">
+            <section id="loader" class="surface hidden loader-panel">
                 <div id="loader-progress-wrapper" class="surface-lighter">
                     <div id="loader-blocks">
                         <div class="loader-block loader-block-highlight"></div>
@@ -54,175 +69,241 @@
                 </div>
                 <div id="loader-text" class="surface-lighter">Loading</div>
                 <div class="text-section">
-                    <h2>Tips</h2>
-                    <h2 class="tip-box">1. First Time Connection</h2>
-                    <p>
-                        If this is your first time connecting to your Nintendo
-                        Switch with NXBT, please ensure that you're on the "Change Grip/Order" menu.
-                        This sub-menu is available from within the Controllers menu, located on the 
-                        bottom row of the Switch's Home Screen.
-                    </p>
-                    <h2 class="tip-box">2. Reconnection</h2>
-                    <p>
-                        If you've previously connected to this Nintendo Switch using NXBT,
-                        please ensure that you're on the Home Screen.
-                    </p>
+                    <h2>Verbindungstipps</h2>
+                    <p>Erste Verbindung: Auf dem Switch das Menue "Grip/Reihenfolge aendern" offen halten.</p>
+                    <p>Reconnect: Wenn NXBT bereits gekoppelt war, den Switch auf dem Home-Screen lassen.</p>
                 </div>
             </section>
 
-            <section id="controller-config" class="surface hidden">
-                <div id="controller-underlay-container">
-                    <div class="controller-display hidden">
-                        <div class="control-indicator" id="jl_"></div>
-                        <img id="joyconl-underlay" class="hidden controller-underlay" src="joyconl.svg" draggable="false">
+            <section id="controller-config" class="hidden dashboard-grid">
+                <article id="controller-card" class="surface dashboard-card dashboard-card-wide">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Controller-Bereich</div>
+                            <h2>Live Controller</h2>
+                        </div>
+                        <div class="meta-stack">
+                            <span class="meta-label">Verbindung</span>
+                            <strong id="controller-connection-text" data-role="controller-connection">Getrennt</strong>
+                        </div>
                     </div>
-                    <div class="controller-display hidden">
-                        <div class="control-indicator" id="jr_"></div>
-                        <img id="joyconr-underlay" class="hidden controller-underlay" src="joyconr.svg" draggable="false">
+
+                    <div id="controller-underlay-container">
+                        <div class="controller-display">
+                            <img id="procon-underlay" class="controller-underlay" src="procon-transparent.svg" draggable="false">
+                            <div class="control-indicator" id="pc_ls"></div>
+                            <div class="control-indicator" id="pc_rs"></div>
+                            <div class="control-indicator square-button hidden" id="pc_du"></div>
+                            <div class="control-indicator square-button hidden" id="pc_dl"></div>
+                            <div class="control-indicator square-button hidden" id="pc_dr"></div>
+                            <div class="control-indicator square-button hidden" id="pc_dd"></div>
+                            <div class="control-indicator hidden" id="pc_h"></div>
+                            <div class="control-indicator hidden" id="pc_c"></div>
+                            <div class="control-indicator hidden" id="pc_m"></div>
+                            <div class="control-indicator hidden" id="pc_p"></div>
+                            <div class="control-indicator big-button hidden" id="pc_a"></div>
+                            <div class="control-indicator big-button hidden" id="pc_b"></div>
+                            <div class="control-indicator big-button hidden" id="pc_x"></div>
+                            <div class="control-indicator big-button hidden" id="pc_y"></div>
+                            <div class="control-indicator hidden" id="pc_l"></div>
+                            <div class="control-indicator hidden" id="pc_zl"></div>
+                            <div class="control-indicator hidden" id="pc_r"></div>
+                            <div class="control-indicator hidden" id="pc_zr"></div>
+                        </div>
                     </div>
-                    <div class="controller-display">
-                        <img id="procon-underlay" class="controller-underlay" src="procon-transparent.svg" draggable="false">
-                        <div class="control-indicator" id="pc_ls"></div>
-                        <div class="control-indicator" id="pc_rs"></div>
 
-                        <div class="control-indicator square-button hidden" id="pc_du"></div>
-                        <div class="control-indicator square-button hidden" id="pc_dl"></div>
-                        <div class="control-indicator square-button hidden" id="pc_dr"></div>
-                        <div class="control-indicator square-button hidden" id="pc_dd"></div>
-
-                        <div class="control-indicator hidden" id="pc_h"></div>
-                        <div class="control-indicator hidden" id="pc_c"></div>
-
-                        <div class="control-indicator hidden" id="pc_m"></div>
-                        <div class="control-indicator hidden" id="pc_p"></div>
-
-                        <div class="control-indicator big-button hidden" id="pc_a"></div>
-                        <div class="control-indicator big-button hidden" id="pc_b"></div>
-                        <div class="control-indicator big-button hidden" id="pc_x"></div>
-                        <div class="control-indicator big-button hidden" id="pc_y"></div>
-
-                        <div class="control-indicator hidden" id="pc_l"></div>
-                        <div class="control-indicator hidden" id="pc_zl"></div>
-                        <div class="control-indicator hidden" id="pc_r"></div>
-                        <div class="control-indicator hidden" id="pc_zr"></div>
+                    <div class="controller-actions-grid">
+                        <div>
+                            <h3 class="surface-lighter panel-title">Input Device</h3>
+                            <select id="input-device" name="Select an Input Device" onchange="changeInput(event)">
+                                <option value="keyboard">Keyboard</option>
+                            </select>
+                            <h3 class="surface-lighter panel-title">Sampling</h3>
+                            <select id="input-frequency" name="Select an Input Sampling Frequency" onchange="changeFrequency(event)">
+                                <option value="RAF">Monitor Refresh Rate</option>
+                                <option value="240">240Hz</option>
+                                <option value="120">120Hz</option>
+                                <option value="60">60Hz</option>
+                            </select>
+                        </div>
+                        <div>
+                            <h3 class="surface-lighter panel-title">Controller Commands</h3>
+                            <div class="button-stack compact">
+                                <button onclick="shutdownController()">Shutdown Controller</button>
+                                <button onclick="recreateProController()">Recreate Controller</button>
+                                <button onclick="restartController()">Restart Controller</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div id="controller-input" class="controller-config-subsection">
-                    <h2 class="surface-lighter">Input Device</h2>
-                    <select id="input-device" name="Select an Input Device" onchange="changeInput(event)">
-                        <option value="keyboard">Keyboard</option>
-                    </select>
-                    <p>
-                        <strong>Supported Input Devices: </strong>
-                        Keyboards, Gamepads
-                        <br><br>
-                        <strong>Note:</strong> You will likely need to press
-                        a button on the gamepad before it shows up on the
-                        input device list.
-                    </p>
-                    <h2 class="surface-lighter">Input Sampling Frequency</h2>
-                    <select id="input-frequency" name="Select an Input Sampling Frequency" onchange="changeFrequency(event)">
-                        <option value="RAF">Monitor Refresh Rate</option>
-                        <option value="240">240Hz</option>
-                        <option value="120">120Hz</option>
-                        <option value="60">60Hz</option>
-                    </select>
-                    <p>
-                        Note: "Monitor Refresh Rate" is a more stable but 
-                        (potentially) slower frequency. This loop uses the
-                        "requestAnimationFrame()" function, rather than 
-                        "setTimeout()".
-                    </p>
-                    <h2 class="surface-lighter">Control Mapping</h2>
-                    <div id="keyboard-map" class="surface-lighter">
+
+                    <div id="keyboard-map" class="surface-lighter map-panel">
                         <table>
                             <tbody>
-                                <tr>
-                                    <td>Left Stick</td>
-                                    <td>W A S D</td>
-                                </tr>
-                                <tr>
-                                    <td>Left Stick Press</td>
-                                    <td>T</td>
-                                </tr>
-                                <tr>
-                                    <td>Right Stick</td>
-                                    <td>Arrow Keys</td>
-                                </tr>
-                                <tr>
-                                    <td>Right Stick Press</td>
-                                    <td>Y</td>
-                                </tr>
-                                <tr>
-                                    <td>Dpad</td>
-                                    <td>G V B N</td>
-                                </tr>
-                                <tr>
-                                    <td>Home & Capture</td>
-                                    <td>[ & ]</td>
-                                </tr>
-                                <tr>
-                                    <td>Plus & Minus</td>
-                                    <td>6 & 7</td>
-                                </tr>
-                                <tr>
-                                    <td>A B X Y</td>
-                                    <td>L K I J</td>
-                                </tr>
-                                <tr>
-                                    <td>L & ZL</td>
-                                    <td>1 & 2</td>
-                                </tr>
-                                <tr>
-                                    <td>R & ZR</td>
-                                    <td>8 & 9</td>
-                                </tr>
+                                <tr><td>Left Stick</td><td>W A S D</td></tr>
+                                <tr><td>Left Stick Press</td><td>T</td></tr>
+                                <tr><td>Right Stick</td><td>Arrow Keys</td></tr>
+                                <tr><td>Right Stick Press</td><td>Y</td></tr>
+                                <tr><td>Dpad</td><td>G V B N</td></tr>
+                                <tr><td>Home & Capture</td><td>[ & ]</td></tr>
+                                <tr><td>Plus & Minus</td><td>6 & 7</td></tr>
+                                <tr><td>A B X Y</td><td>L K I J</td></tr>
+                                <tr><td>L & ZL</td><td>1 & 2</td></tr>
+                                <tr><td>R & ZR</td><td>8 & 9</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <div id="controller-map" class="hidden surface-lighter">
-                        <p>
-                            Gamepad controls should match the Nintendo Switch
-                            Pro Controller to some degree in a physical manner.
-                            Please consult the gamepad display above to see
-                            which buttons are actuating.
-                        </p>
-                        <p>
-                            Future plans include enabling key remapping. In the
-                            meantime, I apologize for any inconvience!
-                        </p>
+                    <div id="controller-map" class="hidden surface-lighter map-panel">
+                        <p>Gamepad-Zuordnung folgt der Pro-Controller-Anordnung moeglichst nah. Das Overlay zeigt live, welche Eingaben anliegen.</p>
                     </div>
-                </div>
-                <div id="controller-commands" class="controller-config-subsection">
-                    <h2 class="surface-lighter">Controller Commands</h2>
-                    <button onclick="shutdownController()">Shutdown Controller</button>
-                    <button onclick="recreateProController()">Recreate Controller</button>
-                    <button onclick="restartController()">Restart Controller</button>
+                </article>
 
-                    <h2 class="surface-lighter">Controller Macro</h2>
-                    <p>
-                        <strong>Note:</strong> the main input device will override a running
-                        macro.
-                    </p>
-                    <textarea id="macro-text" class="mono" placeholder="Type Your Macro Here" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()"></textarea>
-                    <button onclick="sendMacro()">Run Macro</button>
-                </div>
+                <article class="surface dashboard-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Makro-Editor</div>
+                            <h2>Editor & Ablauf</h2>
+                        </div>
+                        <div class="meta-stack">
+                            <span class="meta-label">Status</span>
+                            <strong id="macro-run-state" data-role="macro-run-state">Kein Makro aktiv</strong>
+                        </div>
+                    </div>
+
+                    <div class="macro-toolbar">
+                        <input id="macro-name" class="mono" type="text" placeholder="Makro-Name, z. B. route.txt">
+                        <input id="macro-search" type="text" placeholder="Makros filtern">
+                    </div>
+                    <select id="macro-list" name="Saved Macros">
+                        <option value="">Gespeicherte Makros</option>
+                    </select>
+                    <textarea id="macro-text" class="mono macro-editor" placeholder="NXBT-Makro eingeben oder vom Recorder uebernehmen" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()"></textarea>
+                    <div class="button-grid">
+                        <button onclick="saveMacro()">Speichern</button>
+                        <button onclick="loadMacro()">Laden</button>
+                        <button onclick="deleteMacro()">Loeschen</button>
+                        <button id="macro-run" onclick="runMacro()">Starten</button>
+                        <button id="macro-stop" onclick="stopRunningMacro()" disabled>Stoppen</button>
+                        <button id="debug-start" onclick="startMacroDebug()">Debug starten</button>
+                    </div>
+                    <div id="macro-status" class="macro-status hidden"></div>
+                </article>
+
+                <article class="surface dashboard-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Makro-Recorder</div>
+                            <h2>Aufzeichnen</h2>
+                        </div>
+                        <div class="meta-stack">
+                            <span class="meta-label">Recorder</span>
+                            <strong id="recorder-state" data-role="recorder-state">Recorder inaktiv</strong>
+                        </div>
+                    </div>
+
+                    <p class="support-copy">Starte die Aufzeichnung, nutze Keyboard oder Gamepad fuer Controller-Inputs und uebernimm das erzeugte NXBT-Makro direkt in den Editor.</p>
+                    <div class="button-grid recorder-grid">
+                        <button id="recorder-start" onclick="startRecorder()">Recorder starten</button>
+                        <button id="recorder-stop" onclick="stopRecorder()" disabled>Recorder stoppen</button>
+                        <button onclick="adoptRecorderMacro('replace')">Makro uebernehmen</button>
+                        <button onclick="adoptRecorderMacro('append')">Makro anhaengen</button>
+                    </div>
+                    <textarea id="recorder-preview" class="mono recorder-preview" placeholder="Recorder-Vorschau" readonly></textarea>
+                </article>
+
+                <article class="surface dashboard-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Laufender Status</div>
+                            <h2>Ausfuehrung Live</h2>
+                        </div>
+                    </div>
+                    <div class="status-list execution-status-list">
+                        <div class="status-row"><span>Controller</span><strong data-role="controller-connection">Getrennt</strong></div>
+                        <div class="status-row"><span>Makro</span><strong data-role="macro-run-state">Kein Makro aktiv</strong></div>
+                        <div class="status-row"><span>Recorder</span><strong data-role="recorder-state">Recorder inaktiv</strong></div>
+                        <div class="status-row"><span>Zeile</span><strong id="macro-current-line">-</strong></div>
+                        <div class="status-row"><span>Aktion</span><strong id="macro-current-action">-</strong></div>
+                        <div class="status-row"><span>Button</span><strong id="macro-current-button">-</strong></div>
+                        <div class="status-row"><span>Loop</span><strong id="macro-current-loop">-</strong></div>
+                    </div>
+                    <div class="execution-panel surface-lighter">
+                        <div class="execution-progress-header">
+                            <span id="macro-progress-text">0 / 0 Schritte</span>
+                            <span><strong id="macro-elapsed">0.0s</strong> / <strong id="macro-remaining">0.0s</strong></span>
+                        </div>
+                        <div class="progress-track">
+                            <div id="macro-progress-bar" class="progress-bar"></div>
+                        </div>
+                        <div class="execution-current-step">
+                            <div class="meta-label">Aktuelle Zeile</div>
+                            <div id="macro-current-raw" class="mono execution-raw">Keine aktive Ausfuehrung</div>
+                        </div>
+                    </div>
+                </article>
+
+                <article id="debug-panel" class="surface dashboard-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Debug-Modus</div>
+                            <h2>Schritt fuer Schritt</h2>
+                        </div>
+                    </div>
+                    <p class="support-copy">Debug startet das Makro ohne Auto-Run. Mit einzelnen Schritten oder Weiterlaufen kannst du den Ablauf in Menues gezielt nachvollziehen.</p>
+                    <div class="button-grid debug-grid">
+                        <button id="debug-next" onclick="debugNextMacroStep()" disabled>Naechster Schritt</button>
+                        <button id="debug-continue" onclick="debugContinueMacro()" disabled>Weiterlaufen</button>
+                        <button id="debug-pause" onclick="debugPauseMacro()" disabled>Pause</button>
+                        <button id="debug-abort" onclick="debugAbortMacro()" disabled>Abbrechen</button>
+                    </div>
+                </article>
+
+                <article class="surface dashboard-card dashboard-card-wide">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Log / Statusbereich</div>
+                            <h2>Aktivitaet</h2>
+                        </div>
+                    </div>
+                    <div id="log-entries" class="log-entries"></div>
+                </article>
+
+                <article class="surface dashboard-card dashboard-card-wide">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Systemdiagnose</div>
+                            <h2>Bluetooth &amp; System</h2>
+                        </div>
+                        <div class="meta-stack">
+                            <span class="meta-label">Status</span>
+                            <strong id="bt-check-state">Nicht geprueft</strong>
+                        </div>
+                    </div>
+                    <div class="button-grid diag-button-grid">
+                        <button onclick="runBluetoothCheck()">Bluetooth pruefen</button>
+                        <button onclick="runSystemCheck()">Systeminfo abrufen</button>
+                    </div>
+                    <div id="diag-result" class="diag-result hidden"></div>
+                </article>
             </section>
 
             <section id="controller-sessions" class="hidden surface">
-                <h1>Other Controller Sessions</h1>
+                <h2>Weitere Sessions</h2>
                 <div id="controller-session-container"></div>
             </section>
 
             <section id="error-display"></section>
 
             <footer>
-                <p>Source Code and Documentation Available <a href="https://github.com/Brikwerk/nxbt" target="_blank">Here</a></p>
-                <p>Made By <a href="http://github.com/Brikwerk" target="_blank">Reece Walsh</a></p>
+                <p>Source Code und Dokumentation: <a href="https://github.com/Brikwerk/nxbt" target="_blank">GitHub</a></p>
             </footer>
         </main>
 
         <script src="js/socket.io.js"></script>
+        <script src="js/ui.js"></script>
+        <script src="js/recorder.js"></script>
+        <script src="js/macros.js"></script>
+        <script src="js/controller.js"></script>
+        <script src="js/bluetooth.js"></script>
         <script src="js/main.js"></script>
     </body>
 </html>
