@@ -342,7 +342,7 @@ class ControllerServer():
                         self.bt.remove_device(key)
                         connected_devices_count[key] = 0
 
-            time.sleep(0.1)
+            time.sleep(0.5)
 
     def connect(self):
         """Configures as a specified controller, pairs with a Nintendo Switch,

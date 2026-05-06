@@ -605,7 +605,16 @@ def _pump_input(controller_index, packet, duration, status_callback=None):
         if now - last_check_at >= _CONTROLLER_CHECK_INTERVAL:
             _check_controller_state(controller_index)
             last_check_at = now
-        nxbt.set_controller_input(controller_index, packet)
+        # Retry up to 3 times on transient controller-not-found errors
+        # (race between crash detection and manager_state cleanup).
+        for _attempt in range(3):
+            try:
+                nxbt.set_controller_input(controller_index, packet)
+                break
+            except ValueError:
+                if _attempt == 2:
+                    raise
+                time.sleep(0.05)
         # Throttle Socket.IO status emissions to _STATUS_EMIT_INTERVAL (10 Hz).
         # Was previously 120 Hz – the biggest single CPU drain on Pi 3.
         if status_callback is not None and now - last_status_at >= _STATUS_EMIT_INTERVAL:

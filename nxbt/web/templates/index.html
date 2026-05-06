@@ -192,6 +192,90 @@
                     <div id="macro-status" class="macro-status hidden"></div>
                 </article>
 
+                <article class="surface dashboard-card dashboard-card-wide" id="macro-builder-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Makro-Baukasten</div>
+                            <h2>Visueller Editor</h2>
+                        </div>
+                        <div class="meta-stack">
+                            <span class="meta-label">Schritte</span>
+                            <strong id="builder-step-count">0</strong>
+                        </div>
+                    </div>
+                    <p class="support-copy">Buttons auswaehlen, Dauer einstellen und Schritt hinzufuegen. Loops verschachteln fuer komplexe Ablaeufe. Mit &bdquo;&rarr; Makro-Editor&ldquo; direkt uebernehmen.</p>
+
+                    <div class="builder-palette">
+                        <div class="builder-group">
+                            <span class="builder-group-label">Face</span>
+                            <div class="builder-btn-row">
+                                <button class="builder-btn" id="bbtn-A" onclick="builderToggle('A')">A</button>
+                                <button class="builder-btn" id="bbtn-B" onclick="builderToggle('B')">B</button>
+                                <button class="builder-btn" id="bbtn-X" onclick="builderToggle('X')">X</button>
+                                <button class="builder-btn" id="bbtn-Y" onclick="builderToggle('Y')">Y</button>
+                            </div>
+                        </div>
+                        <div class="builder-group">
+                            <span class="builder-group-label">D-Pad</span>
+                            <div class="builder-btn-row">
+                                <button class="builder-btn" id="bbtn-DPAD_UP" onclick="builderToggle('DPAD_UP')">&#x2191;</button>
+                                <button class="builder-btn" id="bbtn-DPAD_DOWN" onclick="builderToggle('DPAD_DOWN')">&#x2193;</button>
+                                <button class="builder-btn" id="bbtn-DPAD_LEFT" onclick="builderToggle('DPAD_LEFT')">&#x2190;</button>
+                                <button class="builder-btn" id="bbtn-DPAD_RIGHT" onclick="builderToggle('DPAD_RIGHT')">&#x2192;</button>
+                            </div>
+                        </div>
+                        <div class="builder-group">
+                            <span class="builder-group-label">Schulter</span>
+                            <div class="builder-btn-row">
+                                <button class="builder-btn" id="bbtn-L" onclick="builderToggle('L')">L</button>
+                                <button class="builder-btn" id="bbtn-ZL" onclick="builderToggle('ZL')">ZL</button>
+                                <button class="builder-btn" id="bbtn-R" onclick="builderToggle('R')">R</button>
+                                <button class="builder-btn" id="bbtn-ZR" onclick="builderToggle('ZR')">ZR</button>
+                            </div>
+                        </div>
+                        <div class="builder-group">
+                            <span class="builder-group-label">System</span>
+                            <div class="builder-btn-row">
+                                <button class="builder-btn" id="bbtn-PLUS" onclick="builderToggle('PLUS')">+</button>
+                                <button class="builder-btn" id="bbtn-MINUS" onclick="builderToggle('MINUS')">&minus;</button>
+                                <button class="builder-btn" id="bbtn-HOME" onclick="builderToggle('HOME')">&#x2302;</button>
+                                <button class="builder-btn" id="bbtn-CAPTURE" onclick="builderToggle('CAPTURE')">&#x25A1;</button>
+                                <button class="builder-btn" id="bbtn-L_STICK_PRESS" onclick="builderToggle('L_STICK_PRESS')">LS</button>
+                                <button class="builder-btn" id="bbtn-R_STICK_PRESS" onclick="builderToggle('R_STICK_PRESS')">RS</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="builder-options-row">
+                        <div class="builder-opt">
+                            <label class="builder-opt-label" for="builder-duration">Dauer (s)</label>
+                            <input id="builder-duration" type="number" min="0.1" max="60" step="0.1" value="0.5" class="mono builder-opt-input" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">
+                        </div>
+                        <div class="builder-opt">
+                            <label class="builder-opt-label" for="builder-comment">Schritt-Label</label>
+                            <input id="builder-comment" type="text" placeholder="z. B. Menue oeffnen" class="builder-opt-input builder-comment-input" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">
+                        </div>
+                        <div class="builder-opt">
+                            <label class="builder-opt-label" for="builder-loop-count">Loop-Anzahl</label>
+                            <input id="builder-loop-count" type="number" min="2" max="9999" value="3" class="mono builder-opt-input" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">
+                        </div>
+                    </div>
+
+                    <div class="button-grid builder-controls">
+                        <button onclick="builderAddStep()">+ Knopfdruck</button>
+                        <button onclick="builderAddWait()">+ Warten</button>
+                        <button onclick="builderAddLoopStart()">&#x21BA; Loop-Anfang</button>
+                        <button onclick="builderAddLoopEnd()">&#x21A9; Loop-Ende</button>
+                    </div>
+
+                    <div id="builder-steps-list" class="builder-steps-list"></div>
+
+                    <div class="button-grid builder-export-row">
+                        <button onclick="builderClear()">Leeren</button>
+                        <button onclick="builderExportToEditor()">&rarr; In Makro-Editor uebernehmen</button>
+                    </div>
+                </article>
+
                 <article class="surface dashboard-card">
                     <div class="card-header">
                         <div>
@@ -319,6 +403,7 @@
         <script src="js/macros.js"></script>
         <script src="js/controller.js"></script>
         <script src="js/bluetooth.js"></script>
+        <script src="js/builder.js"></script>
         <script src="js/main.js"></script>
     </body>
 </html>
