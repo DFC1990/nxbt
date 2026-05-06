@@ -164,6 +164,87 @@ function _builderToText() {
     return lines.join('\n');
 }
 
+function builderImportFromEditor() {
+    let dom = window.NXBTApp && window.NXBTApp.dom;
+    let text = dom && dom.macroText ? dom.macroText.value : '';
+    if (!text.trim()) {
+        setBannerStatus('Makro-Editor ist leer', 'error');
+        return;
+    }
+
+    let steps = [];
+    let lines = text.split('\n');
+    let pendingComment = '';
+    let loopStack = [];
+    let nextId = 1;
+
+    for (let i = 0; i < lines.length; i++) {
+        let raw = lines[i];
+        let stripped = raw.trim();
+        if (!stripped) continue;
+
+        let expanded = raw.replace(/\t/g, '    ');
+        let indent = expanded.length - expanded.trimStart().length;
+
+        // Close open loops when indent decreases
+        while (loopStack.length > 0 && indent <= loopStack[loopStack.length - 1].indent) {
+            loopStack.pop();
+            steps.push({ id: nextId++, type: 'loop_end' });
+        }
+
+        if (stripped.startsWith('#')) {
+            pendingComment = stripped.slice(1).trim();
+            continue;
+        }
+
+        let tokens = stripped.split(/\s+/);
+        let comment = pendingComment;
+        pendingComment = '';
+
+        if (tokens[0].toUpperCase() === 'LOOP' && tokens.length === 2) {
+            steps.push({ id: nextId++, type: 'loop_start', count: Math.max(2, parseInt(tokens[1]) || 2), comment: comment });
+            loopStack.push({ indent: indent });
+            continue;
+        }
+
+        if (tokens.length === 1 && /^\d+(\.\d+)?s$/i.test(tokens[0])) {
+            steps.push({ id: nextId++, type: 'wait', duration: Math.round(parseFloat(tokens[0]) * 10) / 10, comment: comment });
+            continue;
+        }
+
+        if (tokens.length >= 2 && /^\d+(\.\d+)?s$/i.test(tokens[tokens.length - 1])) {
+            steps.push({
+                id: nextId++,
+                type: 'button',
+                buttons: tokens.slice(0, -1),
+                duration: Math.round(parseFloat(tokens[tokens.length - 1]) * 10) / 10,
+                comment: comment,
+            });
+            continue;
+        }
+    }
+
+    while (loopStack.length > 0) {
+        loopStack.pop();
+        steps.push({ id: nextId++, type: 'loop_end' });
+    }
+
+    if (steps.length === 0) {
+        setBannerStatus('Keine gueltigen Schritte im Makro-Editor gefunden', 'error');
+        return;
+    }
+
+    _builderSteps = steps;
+    _builderNextId = nextId;
+    _builderSelected.clear();
+    document.querySelectorAll('.builder-btn-active').forEach(function(e) {
+        e.classList.remove('builder-btn-active');
+    });
+    _builderRender();
+    setBannerStatus('Makro importiert: ' + steps.filter(function(s) { return s.type !== 'loop_end'; }).length + ' Schritte geladen', 'success');
+    appendLog('Makro-Editor → Baukasten: ' + steps.length + ' Schritte importiert', 'success');
+}
+
 function _builderDepthAt(upToIdx) {
     let d = 0;
     for (let i = 0; i < upToIdx; i++) {
