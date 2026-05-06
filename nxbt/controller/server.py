@@ -305,11 +305,21 @@ class ControllerServer():
         connected_devices = []
         connected_devices_count = {}
         while self._crw_running:
-            paths = self.bt.find_connected_devices(alias_filter="Nintendo Switch")
+            try:
+                paths = self.bt.find_connected_devices(alias_filter="Nintendo Switch")
+            except Exception as e:
+                # DBus can time out transiently on Pi 3 (NoReply / broken connection).
+                # Log and skip this iteration rather than crashing the watchdog thread.
+                self.logger.warning(
+                    "connection_reset_watchdog: find_connected_devices fehlgeschlagen "
+                    "(wird uebersprungen): %s", e)
+                time.sleep(1.0)
+                continue
+
             # Keep track of Switches that connect
             if len(paths) > 0:
                 connected_devices = list(set(connected_devices + paths))
-            
+
             # Increment a counter if a Switch connected and disconnected
             disconnected = list(set(connected_devices) - set(paths))
             if len(disconnected) > 0:
@@ -319,7 +329,7 @@ class ControllerServer():
                     else:
                         connected_devices_count[path] += 1
                 connected_devices = list(set(connected_devices) - set(disconnected))
-            
+
             # Delete Switches that connect/disconnect twice.
             # This behaviour is characteristic of connection issues and is corrected
             # by removing the Switch's connection to the system.

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import shutil
@@ -20,6 +21,14 @@ import eventlet
 app = Flask(__name__,
             static_url_path='',
             static_folder='static',)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    stream=sys.stderr,
+)
+log = logging.getLogger('nxbt.webapp')
+
 nxbt = Nxbt()
 
 # Configuring/retrieving secret key
@@ -561,9 +570,16 @@ def _update_runtime_status(plan, current_index, step, started_monotonic, current
 def _check_controller_state(controller_index):
     state = nxbt.state.get(controller_index)
     if state is None:
+        log.error("Controller %s nicht im State gefunden. Bekannte Indices: %s",
+                  controller_index, list(nxbt.state.keys()))
         raise RuntimeError("Controller ist nicht mehr verfuegbar")
     if state.get("state") == "crashed":
-        raise RuntimeError(state.get("errors") or "Controller ist abgestuerzt")
+        errors = state.get("errors") or ""
+        log.error(
+            "Controller %s abgestuerzt. errors=%r full_state=%r",
+            controller_index, errors, dict(state),
+        )
+        raise RuntimeError(errors or "Controller ist abgestuerzt")
     return state
 
 
@@ -665,8 +681,9 @@ def _finalize_macro_finish():
 def _finalize_macro_error(controller_index, error_text):
     try:
         _release_controller_input(controller_index)
-    except Exception:
-        pass
+    except Exception as release_err:
+        log.warning("_release_controller_input fehlgeschlagen nach Macro-Fehler: %s", release_err)
+    log.error("Makro-Fehler (controller=%s): %s", controller_index, error_text)
     _append_macro_log(error_text, level='error', action='error', result='error')
     _reset_macro_status(last_result='error', last_error=error_text, stopped=False)
     sio.emit('macro_error', _macro_status_snapshot())
