@@ -77,6 +77,8 @@ MACRO_STATUS = {
     "loop_stack": [],
     "steps_done": 0,
     "steps_total": 0,
+    "repeat_current": 1,
+    "repeat_total": 1,
     "elapsed_seconds": 0.0,
     "estimated_remaining": None,
     "last_error": None,
@@ -241,6 +243,8 @@ def _reset_macro_status(last_result=None, last_error=None, stopped=False):
         MACRO_STATUS["loop_stack"] = []
         MACRO_STATUS["steps_done"] = 0
         MACRO_STATUS["steps_total"] = 0
+        MACRO_STATUS["repeat_current"] = 1
+        MACRO_STATUS["repeat_total"] = 1
         MACRO_STATUS["elapsed_seconds"] = 0.0
         MACRO_STATUS["estimated_remaining"] = None
         MACRO_STATUS["last_error"] = last_error
@@ -251,7 +255,7 @@ def _reset_macro_status(last_result=None, last_error=None, stopped=False):
     return snapshot
 
 
-def _initialize_macro_status(macro_name, controller_index, plan, debug_mode=False):
+def _initialize_macro_status(macro_name, controller_index, plan, debug_mode=False, repeat_total=1):
     started_at = _utc_timestamp()
     steps = plan["steps"]
     current_step = steps[0] if steps else None
@@ -275,8 +279,10 @@ def _initialize_macro_status(macro_name, controller_index, plan, debug_mode=Fals
         loop_stack=current_step.get("loop_stack", []) if current_step else [],
         steps_done=0,
         steps_total=len(steps),
+        repeat_current=1,
+        repeat_total=repeat_total,
         elapsed_seconds=0.0,
-        estimated_remaining=plan["total_duration"],
+        estimated_remaining=plan["total_duration"] * repeat_total,
         last_error=None,
         last_result="debug_ready" if debug_mode else None,
         controller_index=controller_index,
@@ -689,65 +695,77 @@ def _finalize_macro_error(controller_index, error_text):
     sio.emit('macro_error', _macro_status_snapshot())
 
 
-def _run_macro_plan_task(controller_index, plan, macro_name=None, debug_mode=False):
+def _run_macro_plan_task(controller_index, plan, macro_name=None, debug_mode=False, repeat=1):
     global MACRO_THREAD
 
     started_monotonic = time.monotonic()
-    previous_loop_signature = None
     try:
-        _initialize_macro_status(macro_name, controller_index, plan, debug_mode=debug_mode)
+        _initialize_macro_status(macro_name, controller_index, plan, debug_mode=debug_mode, repeat_total=repeat)
         if debug_mode:
             _append_macro_log("Debug bereit", level='info', action='debug', result='ready')
         else:
-            _append_macro_log("Makro gestartet", level='warning', action='run', result='running')
+            repeat_label = f" ({repeat}x)" if repeat > 1 else ""
+            _append_macro_log(f"Makro gestartet{repeat_label}", level='warning', action='run', result='running')
 
-        for current_index, step in enumerate(plan["steps"]):
-            # Check stop event BEFORE controller state so a user-requested stop
-            # is never misreported as a controller crash.
-            if MACRO_STOP_EVENT.is_set():
-                raise MacroExecutionStopped()
-            _check_controller_state(controller_index)
-            _update_runtime_status(plan, current_index, step, started_monotonic, current_remaining=step["duration"], steps_done=current_index)
-            _emit_macro_step(step)
-
-            if debug_mode:
-                _wait_for_debug_resume(plan, current_index, step, started_monotonic)
-
-            if MACRO_STOP_EVENT.is_set():
-                raise MacroExecutionStopped()
-
-            loop_signature = tuple(
-                (loop_info["loop_line"], loop_info["loop_current"], loop_info["loop_total"])
-                for loop_info in step.get("loop_stack", [])
-            )
-            if loop_signature and loop_signature != previous_loop_signature:
-                current_loop = step["loop_stack"][-1]
+        for repeat_index in range(repeat):
+            if repeat > 1:
+                _set_macro_status(repeat_current=repeat_index + 1)
                 _append_macro_log(
-                    f"Loop {current_loop['loop_current']}/{current_loop['loop_total']} gestartet",
-                    level='info',
-                    line=current_loop["loop_line"],
-                    action='loop',
-                    result='running',
+                    f"Wiederholung {repeat_index + 1}/{repeat}",
+                    level='info', action='run', result='running',
                 )
-                previous_loop_signature = loop_signature
+                _emit_macro_status()
 
-            _log_step_start(step)
-            _execute_step(controller_index, plan, current_index, step, started_monotonic)
-            _set_macro_status(steps_done=current_index + 1, elapsed_seconds=_elapsed_seconds(started_monotonic))
-            _emit_macro_status()
+            previous_loop_signature = None
+            for current_index, step in enumerate(plan["steps"]):
+                # Check stop event BEFORE controller state so a user-requested stop
+                # is never misreported as a controller crash.
+                if MACRO_STOP_EVENT.is_set():
+                    raise MacroExecutionStopped()
+                _check_controller_state(controller_index)
+                _update_runtime_status(plan, current_index, step, started_monotonic, current_remaining=step["duration"], steps_done=current_index)
+                _emit_macro_step(step)
 
-            if debug_mode:
-                with MACRO_STATUS_LOCK:
-                    if MACRO_DEBUG_CONTROL["step_once"] or MACRO_DEBUG_CONTROL["pause_requested"]:
-                        MACRO_STATUS["paused"] = True
-                        MACRO_STATUS["pausing"] = False
-                        MACRO_DEBUG_CONTROL["step_once"] = False
-                        MACRO_DEBUG_CONTROL["pause_requested"] = False
-                if _macro_status_snapshot()["paused"]:
-                    _append_macro_log("Debug pausiert", level='info', action='debug', result='paused')
-                    _emit_macro_status()
+                if debug_mode:
+                    _wait_for_debug_resume(plan, current_index, step, started_monotonic)
 
-        _release_controller_input(controller_index)
+                if MACRO_STOP_EVENT.is_set():
+                    raise MacroExecutionStopped()
+
+                loop_signature = tuple(
+                    (loop_info["loop_line"], loop_info["loop_current"], loop_info["loop_total"])
+                    for loop_info in step.get("loop_stack", [])
+                )
+                if loop_signature and loop_signature != previous_loop_signature:
+                    current_loop = step["loop_stack"][-1]
+                    _append_macro_log(
+                        f"Loop {current_loop['loop_current']}/{current_loop['loop_total']} gestartet",
+                        level='info',
+                        line=current_loop["loop_line"],
+                        action='loop',
+                        result='running',
+                    )
+                    previous_loop_signature = loop_signature
+
+                _log_step_start(step)
+                _execute_step(controller_index, plan, current_index, step, started_monotonic)
+                _set_macro_status(steps_done=current_index + 1, elapsed_seconds=_elapsed_seconds(started_monotonic))
+                _emit_macro_status()
+
+                if debug_mode:
+                    with MACRO_STATUS_LOCK:
+                        if MACRO_DEBUG_CONTROL["step_once"] or MACRO_DEBUG_CONTROL["pause_requested"]:
+                            MACRO_STATUS["paused"] = True
+                            MACRO_STATUS["pausing"] = False
+                            MACRO_DEBUG_CONTROL["step_once"] = False
+                            MACRO_DEBUG_CONTROL["pause_requested"] = False
+                    if _macro_status_snapshot()["paused"]:
+                        _append_macro_log("Debug pausiert", level='info', action='debug', result='paused')
+                        _emit_macro_status()
+
+            # Release buttons at the end of each run to avoid stuck inputs between repeats
+            _release_controller_input(controller_index)
+
         _finalize_macro_finish()
     except MacroExecutionStopped:
         _finalize_macro_stop(controller_index)
@@ -784,6 +802,11 @@ def _start_macro_runner(content, payload, debug_mode=False):
         )
 
     macro_name = payload.get("name") if isinstance(payload, dict) else None
+    repeat = int(payload.get("repeat", 1)) if isinstance(payload, dict) else 1
+    if repeat < 1:
+        repeat = 1
+    elif repeat > 9999:
+        repeat = 9999
     plan = _parse_macro_plan(content)
 
     MACRO_STOP_EVENT.clear()
@@ -795,7 +818,7 @@ def _start_macro_runner(content, payload, debug_mode=False):
 
     macro_thread = Thread(
         target=_run_macro_plan_task,
-        args=(controller_index, plan, macro_name, debug_mode),
+        args=(controller_index, plan, macro_name, debug_mode, repeat),
         daemon=True,
     )
     MACRO_THREAD = macro_thread
@@ -1016,9 +1039,17 @@ def on_disconnect():
     with user_info_lock:
         try:
             index = USER_INFO[request.sid]["controller_index"]
-            nxbt.remove_controller(index)
         except KeyError:
-            pass
+            return
+    # Don't tear down the controller while a macro is running — a transient
+    # Socket.IO reconnect (e.g. polling→WebSocket upgrade) must not kill it.
+    with MACRO_STATUS_LOCK:
+        macro_running = MACRO_STATUS.get("running", False)
+    if not macro_running:
+        try:
+            nxbt.remove_controller(index)
+        except Exception as e:
+            log.warning("remove_controller beim Disconnect fehlgeschlagen: %s", e)
 
 
 @sio.on('shutdown')

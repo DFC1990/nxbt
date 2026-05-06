@@ -46,10 +46,13 @@ function renderMacroStatus() {
         bannerVariant = "warning";
         renderControllerBadge("Debug läuft", "warning");
     } else if (status.running) {
-        label = "Makro läuft" + (status.macro_name ? ": " + status.macro_name : "");
-        bannerText = "Makro läuft...";
+        let repeatSuffix = (status.repeat_total > 1)
+            ? " (" + status.repeat_current + "/" + status.repeat_total + ")"
+            : "";
+        label = "Makro läuft" + repeatSuffix + (status.macro_name ? ": " + status.macro_name : "");
+        bannerText = "Makro läuft" + repeatSuffix + "...";
         bannerVariant = "warning";
-        renderControllerBadge("Makro läuft", "warning");
+        renderControllerBadge("Makro läuft" + repeatSuffix, "warning");
     } else if (status.last_result === "finished") {
         label = "Makro beendet";
         bannerText = "Makro beendet";
@@ -240,13 +243,15 @@ function runMacro() {
     let dom = window.NXBTApp.dom;
     let content = dom.macroText.value;
     let name = dom.macroName.value.trim() || dom.macroList.value || null;
+    let repeatEl = document.getElementById('macro-repeat');
+    let repeat = repeatEl ? Math.max(1, Math.min(9999, parseInt(repeatEl.value, 10) || 1)) : 1;
 
     if (!content.trim()) {
         setBannerStatus("Makro-Inhalt ist leer", "error");
         return;
     }
 
-    let payload = Object.assign({ content: content, name: name }, _macroControllerPayload());
+    let payload = Object.assign({ content: content, name: name, repeat: repeat }, _macroControllerPayload());
 
     fetch('/api/macros/run', {
         method: 'POST',

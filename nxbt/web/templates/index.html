@@ -185,6 +185,10 @@
                         <button id="macro-stop" onclick="stopRunningMacro()" disabled>Stoppen</button>
                         <button id="debug-start" onclick="startMacroDebug()">Debug starten</button>
                     </div>
+                    <div class="repeat-row">
+                        <label for="macro-repeat">Wiederholungen</label>
+                        <input id="macro-repeat" type="number" min="1" max="9999" value="1" class="mono repeat-input" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">
+                    </div>
                     <div id="macro-status" class="macro-status hidden"></div>
                 </article>
 

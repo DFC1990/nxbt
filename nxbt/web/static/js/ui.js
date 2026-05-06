@@ -204,6 +204,8 @@ function renderExecutionPanel(status) {
 
     let totalSteps = status.steps_total || 0;
     let doneSteps = status.steps_done || 0;
+    let repeatTotal = status.repeat_total || 1;
+    let repeatCurrent = status.repeat_current || 1;
     let progress = totalSteps > 0 ? Math.min(100, Math.round((doneSteps / totalSteps) * 100)) : 0;
 
     window.NXBTApp.dom.macroCurrentLine.innerHTML = lineText;
@@ -211,7 +213,12 @@ function renderExecutionPanel(status) {
     window.NXBTApp.dom.macroCurrentButton.innerHTML = status.current_button || (status.current_action === "wait" ? "Warte" : "-");
     window.NXBTApp.dom.macroCurrentLoop.innerHTML = loopText;
     window.NXBTApp.dom.macroCurrentRaw.innerHTML = status.current_raw || "Keine aktive Ausfuehrung";
-    window.NXBTApp.dom.macroProgressText.innerHTML = doneSteps + " / " + totalSteps + " Schritte";
+
+    let stepLabel = doneSteps + " / " + totalSteps + " Schritte";
+    if (repeatTotal > 1) {
+        stepLabel += "  |  Wiederholung " + repeatCurrent + " / " + repeatTotal;
+    }
+    window.NXBTApp.dom.macroProgressText.innerHTML = stepLabel;
     window.NXBTApp.dom.macroElapsed.innerHTML = formatSeconds(status.elapsed_seconds);
     window.NXBTApp.dom.macroRemaining.innerHTML = formatSeconds(status.estimated_remaining);
     window.NXBTApp.dom.macroProgressBar.style.width = progress + "%";
