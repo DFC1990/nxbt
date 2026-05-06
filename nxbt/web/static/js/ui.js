@@ -66,6 +66,37 @@ function formatSeconds(value) {
     return Number(value).toFixed(1) + "s";
 }
 
+function updateMacroFloatBar(status) {
+    let bar = document.getElementById('macro-float-bar');
+    if (!bar) { return; }
+
+    let running = status && status.running && !status.stopping;
+    if (!running) {
+        bar.classList.add('hidden');
+        return;
+    }
+
+    bar.classList.remove('hidden');
+
+    let nameEl = document.getElementById('macro-float-name');
+    let stepEl = document.getElementById('macro-float-step');
+    let remEl  = document.getElementById('macro-float-remaining');
+
+    if (nameEl) {
+        let label = status.macro_name || 'Makro';
+        if (status.repeat_total > 1) {
+            label += '  ' + status.repeat_current + '/' + status.repeat_total + 'x';
+        }
+        nameEl.textContent = label;
+    }
+    if (stepEl) {
+        stepEl.textContent = (status.steps_done || 0) + ' / ' + (status.steps_total || 0) + ' Schritte';
+    }
+    if (remEl) {
+        remEl.textContent = formatSeconds(status.estimated_remaining);
+    }
+}
+
 function setBannerStatus(message, variant) {
     let banner = window.NXBTApp.dom.macroStatus;
     if (!banner) {

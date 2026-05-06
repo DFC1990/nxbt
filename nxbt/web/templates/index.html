@@ -302,6 +302,17 @@
             </footer>
         </main>
 
+        <!-- Floating macro status bar – always visible while a macro runs -->
+        <div id="macro-float-bar" class="macro-float-bar hidden">
+            <div class="macro-float-pulse"></div>
+            <div class="macro-float-info">
+                <span id="macro-float-name" class="macro-float-name">Makro</span>
+                <span id="macro-float-step" class="macro-float-step">0 / 0</span>
+                <span id="macro-float-remaining" class="macro-float-remaining mono">0.0s</span>
+            </div>
+            <button class="macro-float-stop-btn" onclick="stopRunningMacro()">Stoppen</button>
+        </div>
+
         <script src="js/socket.io.js"></script>
         <script src="js/ui.js"></script>
         <script src="js/recorder.js"></script>

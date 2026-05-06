@@ -260,16 +260,65 @@ function updateLoader() {
     }
 }
 
+// Auto-reconnect state
+let _arAttempts = 0;
+let _arTimer = null;
+let _arLastCrashedState = false;
+const _AR_MAX = 5;
+const _AR_DELAYS = [3000, 5000, 10000, 20000, 30000];
+
+function _scheduleAutoReconnect() {
+    if (_arTimer !== null) { return; } // already scheduled
+    if (_arAttempts >= _AR_MAX) {
+        appendLog('Auto-Reconnect: ' + _AR_MAX + ' Versuche fehlgeschlagen – bitte manuell neu verbinden.', 'error');
+        return;
+    }
+    let delay = _AR_DELAYS[_arAttempts] || 30000;
+    _arAttempts++;
+    appendLog(
+        'Controller abgestuerzt – Auto-Reconnect in ' + (delay / 1000) + 's (Versuch ' + _arAttempts + '/' + _AR_MAX + ')...',
+        'warning'
+    );
+    _arTimer = setTimeout(function() {
+        _arTimer = null;
+        appendLog('Auto-Reconnect: Controller wird neu erstellt...', 'info');
+        recreateProController();
+    }, delay);
+}
+
+function _cancelAutoReconnect() {
+    if (_arTimer !== null) {
+        clearTimeout(_arTimer);
+        _arTimer = null;
+    }
+}
+
 function updateStatusIndicator() {
     let index = window.NXBTApp.state.nxbtControllerIndex;
     let state = window.NXBTApp.state.state;
     if (state && state[index]) {
         let controllerState = state[index].state;
+
         if (controllerState === window.NXBTApp.enums.ControllerState.CONNECTED) {
+            // Successful (re)connect – reset counter
+            if (_arAttempts > 0) {
+                appendLog('Controller verbunden (Auto-Reconnect erfolgreich).', 'success');
+            }
+            _arAttempts = 0;
+            _cancelAutoReconnect();
+            _arLastCrashedState = false;
             changeStatusIndicatorState('indicator-green', 'CONNECTED');
+
         } else if (controllerState === window.NXBTApp.enums.ControllerState.CRASHED) {
+            // Trigger reconnect only on the first tick we see "crashed"
+            if (!_arLastCrashedState) {
+                _arLastCrashedState = true;
+                _scheduleAutoReconnect();
+            }
             changeStatusIndicatorState('indicator-red', 'CRASHED');
+
         } else {
+            _arLastCrashedState = false;
             changeStatusIndicatorState('indicator-yellow', controllerState.toUpperCase());
         }
     } else {

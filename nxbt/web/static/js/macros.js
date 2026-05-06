@@ -14,6 +14,9 @@ function _applyMacroStatus(status) {
     renderMacroStatus();
     syncMacroControls();
     renderExecutionPanel(status);
+    if (typeof updateMacroFloatBar === 'function') {
+        updateMacroFloatBar(status);
+    }
 }
 
 // --- Status-Rendering ---

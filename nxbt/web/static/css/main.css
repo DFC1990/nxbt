@@ -787,3 +787,84 @@ footer a {
         grid-template-columns: 1fr;
     }
 }
+
+/* ---- Floating macro status bar ---- */
+
+.macro-float-bar {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.65rem 1rem 0.65rem 1.25rem;
+    background: var(--panel-strong);
+    border: 1px solid rgba(248, 178, 77, 0.35);
+    border-radius: 999px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(248, 178, 77, 0.1);
+    backdrop-filter: blur(16px);
+    z-index: 9000;
+    white-space: nowrap;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.macro-float-bar.hidden {
+    display: none;
+}
+
+.macro-float-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--warning);
+    flex-shrink: 0;
+    animation: float-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes float-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+.macro-float-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.macro-float-name {
+    font-weight: 600;
+    color: var(--warning);
+    max-width: 18rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.macro-float-step {
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.macro-float-remaining {
+    color: var(--accent);
+    font-size: 0.9rem;
+    min-width: 4rem;
+    text-align: right;
+}
+
+.macro-float-stop-btn {
+    background: var(--error) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 999px !important;
+    padding: 0.4rem 1.2rem !important;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.macro-float-stop-btn:hover {
+    filter: brightness(1.15);
+}

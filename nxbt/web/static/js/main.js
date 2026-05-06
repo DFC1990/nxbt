@@ -172,6 +172,7 @@ function cacheDom() {
     dom.errorDisplay = document.getElementById("error-display");
     dom.controllerSessions = document.getElementById("controller-sessions");
     dom.controllerSessionsContainer = document.getElementById("controller-session-container");
+    dom.macroFloatBar = document.getElementById("macro-float-bar");
     dom.liveStatusBadge = document.getElementById("live-status-badge");
     dom.controllerConnectionText = document.getElementById("controller-connection-text");
     dom.recorderState = document.getElementById("recorder-state");

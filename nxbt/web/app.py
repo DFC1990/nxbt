@@ -1078,7 +1078,11 @@ def handle_input(message):
     message = json.loads(message)
     index = message[0]
     input_packet = message[1]
-    nxbt.set_controller_input(index, input_packet)
+    try:
+        nxbt.set_controller_input(index, input_packet)
+    except Exception:
+        # Controller briefly gone during crash/reconnect — drop the packet silently.
+        pass
 
 
 @sio.on('macro')
