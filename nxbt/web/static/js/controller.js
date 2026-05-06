@@ -378,6 +378,22 @@ function initializeInputDevices() {
     document.onkeydown = globalKeydownHandler;
     document.onkeyup = globalKeyupHandler;
 
+    // Disable key-to-controller mapping whenever any text input, textarea, or
+    // select is focused — covers macro-name, macro-search, and future fields
+    // without requiring onfocus/onblur on every element in the HTML.
+    document.addEventListener('focusin', function(evt) {
+        let tag = evt.target.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+            disableKeyHandlers();
+        }
+    });
+    document.addEventListener('focusout', function(evt) {
+        let tag = evt.target.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+            enableKeyHandlers();
+        }
+    });
+
     window.addEventListener('gamepadconnected', function(evt) {
         let input = document.createElement('option');
         input.innerHTML = evt.gamepad.id;

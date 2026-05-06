@@ -323,7 +323,10 @@ def _read_macro_content(name):
 
 def _resolve_controller_index(payload):
     if isinstance(payload, dict) and "controller_index" in payload:
-        return int(payload["controller_index"])
+        idx = payload["controller_index"]
+        # JS sends `false` when no controller has been created yet — fall through to auto-detect
+        if idx is not None and idx is not False:
+            return int(idx)
 
     state_proxy = nxbt.state.copy()
     for index in state_proxy.keys():
@@ -333,7 +336,7 @@ def _resolve_controller_index(payload):
         except KeyError:
             continue
 
-    raise ValueError("Kein verbundener Controller verfugbar")
+    raise ValueError("Kein verbundener Controller verfugbar. Bitte zuerst einen Controller erstellen.")
 
 
 def _duration_from_token(token, line_number):
@@ -682,6 +685,10 @@ def _run_macro_plan_task(controller_index, plan, macro_name=None, debug_mode=Fal
             _append_macro_log("Makro gestartet", level='warning', action='run', result='running')
 
         for current_index, step in enumerate(plan["steps"]):
+            # Check stop event BEFORE controller state so a user-requested stop
+            # is never misreported as a controller crash.
+            if MACRO_STOP_EVENT.is_set():
+                raise MacroExecutionStopped()
             _check_controller_state(controller_index)
             _update_runtime_status(plan, current_index, step, started_monotonic, current_remaining=step["duration"], steps_done=current_index)
             _emit_macro_step(step)
@@ -746,6 +753,19 @@ def _start_macro_runner(content, payload, debug_mode=False):
             raise ValueError("Es laeuft bereits ein Makro")
 
     controller_index = _resolve_controller_index(payload)
+
+    # Pre-flight: verify the controller is actually connected before spawning a thread.
+    # Without this, the crash is only discovered mid-execution and reported as a crash error.
+    controller_preflight = nxbt.state.get(controller_index)
+    if controller_preflight is None:
+        raise ValueError("Controller nicht gefunden. Bitte 'Recreate Controller' klicken.")
+    if controller_preflight.get("state") == "crashed":
+        raise ValueError("Controller ist abgestuerzt. Bitte 'Recreate Controller' klicken.")
+    if controller_preflight.get("state") not in ("connected",):
+        raise ValueError(
+            f"Controller nicht bereit (Status: {controller_preflight.get('state', '?')}). Bitte warten."
+        )
+
     macro_name = payload.get("name") if isinstance(payload, dict) else None
     plan = _parse_macro_plan(content)
 
