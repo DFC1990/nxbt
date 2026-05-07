@@ -35,6 +35,8 @@ _hotspot_active = False
 _backend = None     # "nmcli" or "hostapd" or None; set on first detection
 _scan_cache = {"networks": [], "timestamp": 0, "scanning": False}
 _scan_cache_ttl = 30  # Cache scan results for 30 seconds
+_wifi_status_cache = {"result": None, "timestamp": 0}
+_wifi_status_ttl = 5   # Cache wifi status for 5 seconds (avoids nmcli on every poll)
 
 
 def _run(args: list, timeout: int = 10) -> tuple:
@@ -241,11 +243,16 @@ def ap_status() -> dict:
 
 
 def get_wifi_status() -> dict:
-    """Return current WiFi connection info.
+    """Return current WiFi connection info (cached for 5 seconds).
 
     Returns {"connected": bool, "ssid": str|None, "ip": str|None,
              "signal": int|None, "interface": str|None}
     """
+    with _lock:
+        age = time.time() - _wifi_status_cache["timestamp"]
+        if age < _wifi_status_ttl and _wifi_status_cache["result"] is not None:
+            return _wifi_status_cache["result"]
+
     try:
         code, out, _ = _run(
             ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"],
@@ -266,15 +273,23 @@ def get_wifi_status() -> dict:
                 ip_addr = _get_ip_address()
                 signal = _get_wifi_signal()
 
-                return {
+                result = {
                     "connected": True,
                     "ssid": ssid,
                     "ip": ip_addr,
                     "signal": signal,
                     "interface": "wlan0",
                 }
+                with _lock:
+                    _wifi_status_cache["result"] = result
+                    _wifi_status_cache["timestamp"] = time.time()
+                return result
 
-        return {"connected": False, "ssid": None, "ip": None, "signal": None}
+        result = {"connected": False, "ssid": None, "ip": None, "signal": None}
+        with _lock:
+            _wifi_status_cache["result"] = result
+            _wifi_status_cache["timestamp"] = time.time()
+        return result
 
     except Exception as e:
         log.warning(f"Error getting WiFi status: {e}")
