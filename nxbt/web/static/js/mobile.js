@@ -29,6 +29,20 @@ let state = {
   wifiConnectController: null,
 };
 
+// Current gamepad input state (for SocketIO button/stick events)
+let currentInput = createEmptyPacket();
+
+function createEmptyPacket() {
+  return {
+    Y: false, X: false, B: false, A: false,
+    DPAD_UP: false, DPAD_LEFT: false, DPAD_RIGHT: false, DPAD_DOWN: false,
+    L: false, ZL: false, R: false, ZR: false,
+    PLUS: false, MINUS: false, HOME: false, CAPTURE: false,
+    L_STICK: { X_VALUE: 0, Y_VALUE: 0, PRESSED: false },
+    R_STICK: { X_VALUE: 0, Y_VALUE: 0, PRESSED: false },
+  };
+}
+
 // Refs
 let refs = {};
 
@@ -85,6 +99,9 @@ function cacheElements() {
     logViewer: document.getElementById('m-log-viewer'),
     clearLogsBtn: document.getElementById('m-clear-logs-btn'),
 
+    // Macro repeat
+    repeatCount: document.getElementById('m-repeat-count'),
+
     // Gamepad
     controllerStatus: document.getElementById('m-controller-status'),
     controllerType: document.getElementById('m-controller-type'),
@@ -129,14 +146,17 @@ function bindTabNavigation() {
 }
 
 function switchTab(index) {
-  // Update buttons
   refs.tabButtons.forEach((btn, i) => {
     btn.classList.toggle('active', i === index);
   });
 
-  // Update content
   refs.tabContents.forEach((content, i) => {
-    content.classList.toggle('active', i === index);
+    if (i === index) {
+      content.classList.remove('hidden');
+      content.classList.add('active');
+    } else {
+      content.classList.remove('active');
+    }
   });
 }
 
@@ -190,7 +210,7 @@ function saveMacro() {
   })
     .then(r => r.json())
     .then(data => {
-      if (data.ok) {
+      if (!data.error) {
         showEditorMessage('✓ Gespeichert!', 'success');
         loadMacroList();
         setTimeout(() => clearMacro(), 1000);
@@ -218,7 +238,7 @@ function loadMacroList() {
   fetch(API.macros)
     .then(r => r.json())
     .then(data => {
-      state.macros = data || [];
+      state.macros = (data && data.macros) ? data.macros : [];
       renderMacroList();
     })
     .catch(e => {
@@ -241,9 +261,11 @@ function renderMacroList() {
     const card = document.createElement('div');
     card.className = 'macro-card';
 
+    const displayName = name.endsWith('.txt') ? name.slice(0, -4) : name;
+
     const nameEl = document.createElement('span');
     nameEl.className = 'macro-card-name';
-    nameEl.textContent = name;
+    nameEl.textContent = displayName;
     nameEl.addEventListener('click', () => loadMacroForEdit(name));
 
     const actions = document.createElement('div');
@@ -279,7 +301,7 @@ function loadMacroForEdit(name) {
     .then(r => r.json())
     .then(data => {
       if (data.content !== undefined) {
-        refs.macroName.value = name;
+        refs.macroName.value = name.endsWith('.txt') ? name.slice(0, -4) : name;
         refs.macroContent.value = data.content;
         switchTab(0);  // Switch to macros tab
         refs.macroContent.focus();
@@ -289,10 +311,11 @@ function loadMacroForEdit(name) {
 }
 
 function runMacro(name) {
+  const repeat = Math.max(1, Math.min(9999, parseInt(refs.repeatCount?.value || '1', 10) || 1));
   fetch(API.macroRun, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, repeat: 1 }),
+    body: JSON.stringify({ name: name, repeat: repeat }),
   })
     .then(r => r.json())
     .then(data => {
@@ -324,9 +347,11 @@ function deleteMacro(name) {
   fetch(`${API.macros}/${name}`, { method: 'DELETE' })
     .then(r => r.json())
     .then(data => {
-      if (data.ok) {
+      if (!data.error) {
         loadMacroList();
-        if (refs.macroName.value === name) {
+        const editName = refs.macroName.value.trim();
+        const baseName = name.endsWith('.txt') ? name.slice(0, -4) : name;
+        if (editName === baseName || editName === name) {
           clearMacro();
         }
       } else {
@@ -470,21 +495,33 @@ function handleKeyUp(e) {
 }
 
 function buttonPressed(button) {
-  // Visual feedback
   const btn = document.querySelector(`[data-button="${button}"]`);
   if (btn) btn.style.opacity = '0.7';
 
-  // Send input
-  fetch(API.macroRun, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: `${button} 0.1s` }),
-  }).catch(e => console.warn('Input failed:', e));
+  if (!socket || controllerIndex === null) return;
+  if (button === 'L_STICK_PRESS') {
+    currentInput.L_STICK.PRESSED = true;
+  } else if (button === 'R_STICK_PRESS') {
+    currentInput.R_STICK.PRESSED = true;
+  } else {
+    currentInput[button] = true;
+  }
+  socket.emit('input', JSON.stringify([controllerIndex, currentInput]));
 }
 
 function buttonReleased(button) {
   const btn = document.querySelector(`[data-button="${button}"]`);
   if (btn) btn.style.opacity = '1';
+
+  if (!socket || controllerIndex === null) return;
+  if (button === 'L_STICK_PRESS') {
+    currentInput.L_STICK.PRESSED = false;
+  } else if (button === 'R_STICK_PRESS') {
+    currentInput.R_STICK.PRESSED = false;
+  } else {
+    currentInput[button] = false;
+  }
+  socket.emit('input', JSON.stringify([controllerIndex, currentInput]));
 }
 
 function bindVirtualStick(element, stickName, xDisplay, yDisplay) {
@@ -518,14 +555,18 @@ function bindVirtualStick(element, stickName, xDisplay, yDisplay) {
     if (yDisplay) yDisplay.textContent = py;
 
     // Update knob position
-    const knob = element.querySelector('::after') || element;
     const angle = Math.atan2(py, px);
     const dist = Math.min(distance, radius);
     const dx = Math.cos(angle) * dist;
     const dy = Math.sin(angle) * dist;
-
     element.style.setProperty('--knob-x', dx + 'px');
     element.style.setProperty('--knob-y', dy + 'px');
+
+    // Send stick input via SocketIO
+    if (socket && controllerIndex !== null) {
+      currentInput[stickName] = { X_VALUE: px, Y_VALUE: -py, PRESSED: currentInput[stickName].PRESSED };
+      socket.emit('input', JSON.stringify([controllerIndex, currentInput]));
+    }
   }
 
   element.addEventListener('mousedown', (e) => {
@@ -768,6 +809,7 @@ function initSocket() {
   socket.on('disconnect', function() {
     updateControllerUI('disconnected');
     controllerIndex = null;
+    currentInput = createEmptyPacket();
   });
 
   socket.on('create_pro_controller', function(index) {
@@ -784,7 +826,11 @@ function initSocket() {
 
   socket.on('error', function(msg) {
     updateControllerUI('error');
-    addLog('ERROR: ' + msg);
+    const entry = document.createElement('div');
+    entry.className = 'log-entry log-error';
+    entry.textContent = 'ERROR: ' + msg;
+    refs.logViewer.appendChild(entry);
+    refs.logViewer.scrollTop = refs.logViewer.scrollHeight;
   });
 
   refs.connectControllerBtn.addEventListener('click', function() {

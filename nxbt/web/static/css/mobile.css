@@ -858,6 +858,35 @@ main {
 }
 
 /* ============================================================================
+   Repeat Row
+   ============================================================================ */
+
+.repeat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.repeat-input {
+  width: 72px;
+  padding: 0.4rem 0.5rem;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-small);
+  color: var(--text-primary);
+  font-size: 16px;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.repeat-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
+/* ============================================================================
    WiFi Connect Status
    ============================================================================ */
 
