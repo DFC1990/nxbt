@@ -44,15 +44,20 @@ log_info "Repo-Verzeichnis: $REPO_DIR"
 log_info "Konfiguriert dnsmasq für Captive Portal..."
 echo ""
 
-# 1. Installiere dnsmasq
+# 1. Installiere dnsmasq mit systemd-Support
 log_info "Prüfe dnsmasq..."
-if ! command -v dnsmasq &> /dev/null; then
-    log_info "Installiere dnsmasq..."
+if ! systemctl list-unit-files | grep -q dnsmasq.service; then
+    log_info "dnsmasq Service nicht gefunden, reinstalliere..."
     apt update
+    if command -v dnsmasq &> /dev/null; then
+        log_info "Entferne alte dnsmasq-Installation..."
+        apt remove -y dnsmasq
+    fi
+    log_info "Installiere dnsmasq mit systemd-Support..."
     apt install -y dnsmasq
-    log_success "dnsmasq installiert"
+    log_success "dnsmasq mit systemd installiert"
 else
-    log_success "dnsmasq schon installiert"
+    log_success "dnsmasq Service schon verfügbar"
 fi
 
 # 2. Kopiere Config
