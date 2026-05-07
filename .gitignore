@@ -145,3 +145,4 @@ Vagrantfile
 .vagrant
 cert.pem
 key.pem.DS_Store
+.DS_Store
