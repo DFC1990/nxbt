@@ -120,6 +120,13 @@ B 0.3s
             <span id="m-controller-type" class="value">---</span>
           </div>
         </div>
+        <div id="m-connect-controller-area">
+          <button id="m-connect-controller-btn" class="btn btn-primary btn-block">🎮 Mit Switch verbinden</button>
+          <p class="hint">Switch muss im Grip/Reihenfolge-Menü sein (erste Verbindung) oder auf dem Home-Screen (Reconnect).</p>
+        </div>
+        <div id="m-disconnect-controller-area" class="hidden">
+          <button id="m-disconnect-controller-btn" class="btn btn-danger btn-block">Verbindung trennen</button>
+        </div>
       </section>
 
       <!-- Virtual Gamepad -->
@@ -268,6 +275,7 @@ B 0.3s
     <p class="muted small">nxbt mobile 2024</p>
   </footer>
 
+  <script src="js/socket.io.js"></script>
   <script src="js/mobile.js"></script>
 </body>
 </html>

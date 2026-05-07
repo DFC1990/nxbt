@@ -32,6 +32,10 @@ let state = {
 // Refs
 let refs = {};
 
+// SocketIO
+let socket = null;
+let controllerIndex = null;
+
 // ============================================================================
 // Init
 // ============================================================================
@@ -42,6 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
   bindMacroEditor();
   bindGamepad();
   bindWiFi();
+  initSocket();
   loadMacroList();
   updateWiFiStatus();
   updateHotspotStatus();
@@ -83,6 +88,10 @@ function cacheElements() {
     // Gamepad
     controllerStatus: document.getElementById('m-controller-status'),
     controllerType: document.getElementById('m-controller-type'),
+    connectControllerBtn: document.getElementById('m-connect-controller-btn'),
+    disconnectControllerBtn: document.getElementById('m-disconnect-controller-btn'),
+    connectControllerArea: document.getElementById('m-connect-controller-area'),
+    disconnectControllerArea: document.getElementById('m-disconnect-controller-area'),
     stickLeft: document.getElementById('m-stick-left'),
     stickRight: document.getElementById('m-stick-right'),
     stickLeftX: document.getElementById('m-stick-left-x'),
@@ -743,6 +752,91 @@ function startPolling() {
     updateMacroStatus();
     updateWiFiStatus();
   }, 2000);
+}
+
+// ============================================================================
+// Controller Connection (SocketIO)
+// ============================================================================
+
+function initSocket() {
+  socket = io();
+
+  socket.on('connect', function() {
+    updateControllerUI('disconnected');
+  });
+
+  socket.on('disconnect', function() {
+    updateControllerUI('disconnected');
+    controllerIndex = null;
+  });
+
+  socket.on('create_pro_controller', function(index) {
+    controllerIndex = index;
+    updateControllerUI('connecting');
+  });
+
+  socket.on('state_update', function(stateData) {
+    if (controllerIndex === null) return;
+    const cs = stateData[controllerIndex];
+    if (!cs) return;
+    updateControllerUI(cs.state);
+  });
+
+  socket.on('error', function(msg) {
+    updateControllerUI('error');
+    addLog('ERROR: ' + msg);
+  });
+
+  refs.connectControllerBtn.addEventListener('click', function() {
+    refs.connectControllerBtn.disabled = true;
+    refs.connectControllerBtn.textContent = '⏳ Verbinde...';
+    socket.emit('web_create_pro_controller');
+  });
+
+  refs.disconnectControllerBtn.addEventListener('click', function() {
+    if (controllerIndex !== null) {
+      socket.emit('shutdown', controllerIndex);
+      controllerIndex = null;
+    }
+    updateControllerUI('disconnected');
+  });
+}
+
+function updateControllerUI(status) {
+  const statusEl = refs.controllerStatus;
+  const connectArea = refs.connectControllerArea;
+  const disconnectArea = refs.disconnectControllerArea;
+  const btn = refs.connectControllerBtn;
+
+  switch (status) {
+    case 'connecting':
+      statusEl.textContent = '⏳ Verbindet...';
+      statusEl.className = 'value muted';
+      connectArea.classList.add('hidden');
+      disconnectArea.classList.remove('hidden');
+      break;
+    case 'connected':
+      statusEl.textContent = '✅ Verbunden';
+      statusEl.className = 'value';
+      connectArea.classList.add('hidden');
+      disconnectArea.classList.remove('hidden');
+      break;
+    case 'crashed':
+      statusEl.textContent = '❌ Fehler';
+      statusEl.className = 'value';
+      connectArea.classList.remove('hidden');
+      disconnectArea.classList.add('hidden');
+      btn.disabled = false;
+      btn.textContent = '🎮 Erneut verbinden';
+      break;
+    default:
+      statusEl.textContent = 'Getrennt';
+      statusEl.className = 'value muted';
+      connectArea.classList.remove('hidden');
+      disconnectArea.classList.add('hidden');
+      btn.disabled = false;
+      btn.textContent = '🎮 Mit Switch verbinden';
+  }
 }
 
 // ============================================================================
