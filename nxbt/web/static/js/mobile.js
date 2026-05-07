@@ -792,6 +792,9 @@ function startPolling() {
   setInterval(() => {
     updateMacroStatus();
     updateWiFiStatus();
+    if (controllerIndex !== null) {
+      socket.emit('state');
+    }
   }, 2000);
 }
 

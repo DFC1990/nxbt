@@ -1081,10 +1081,10 @@ def on_state():
         state = {}
         for controller in state_proxy.keys():
             state[controller] = state_proxy[controller].copy()
-        emit('state', state)
+        emit('state_update', state)
     except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
         log.error(f"Failed to access controller state: {e}")
-        emit('state', {})
+        emit('state_update', {})
 
 
 @sio.on('disconnect')
