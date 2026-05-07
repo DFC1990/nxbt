@@ -6,8 +6,8 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=">=3.9",
     install_requires=[
-        # Keep dbus-python pinned — ARM wheel availability varies on newer versions
-        "dbus-python==1.2.16",
+        # dbus-python 1.3.2+ supports Python 3.13; wheels available for ARM
+        "dbus-python>=1.3.2,<2",
         # Flask 3.1+ has Python 3.13 support; Werkzeug 3.x required by Flask 3.x
         "Flask>=3.1.0,<4",
         "Werkzeug>=3.1.0,<4",
