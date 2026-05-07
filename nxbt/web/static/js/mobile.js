@@ -660,6 +660,12 @@ function handleConnectSubmit(e) {
 
   state.wifiConnecting = true;
   state.wifiConnectController = new AbortController();
+  const connectTimeout = setTimeout(() => {
+    if (state.wifiConnecting) {
+      state.wifiConnectController.abort();
+    }
+  }, 60000); // 60 second timeout for WiFi connection
+
   refs.connectForm.classList.add('hidden');
   refs.connectStatus.classList.remove('hidden');
   refs.connectError.classList.add('hidden');
@@ -708,6 +714,7 @@ function handleConnectSubmit(e) {
       }
     })
     .finally(() => {
+      clearTimeout(connectTimeout);
       state.wifiConnecting = false;
     });
 }
