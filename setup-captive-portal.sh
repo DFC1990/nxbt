@@ -65,6 +65,7 @@ if [ ! -f "$CONFIG_SRC" ]; then
 fi
 
 log_info "Kopiere dnsmasq Konfiguration..."
+mkdir -p /etc/dnsmasq.d
 cp "$CONFIG_SRC" "$CONFIG_DEST"
 log_success "Konfiguration installiert: $CONFIG_DEST"
 
