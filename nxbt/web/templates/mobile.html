@@ -231,6 +231,11 @@ B 0.3s
           <!-- Populated by mobile.js -->
         </div>
 
+        <div id="m-connect-status" class="connect-status hidden">
+          <p class="muted">⏳ Verbindung wird hergestellt...</p>
+          <button type="button" id="m-connect-cancel-btn" class="btn btn-secondary btn-block">Abbrechen</button>
+        </div>
+
         <form id="m-connect-form" class="hidden">
           <div class="form-group">
             <label for="m-ssid-input">SSID/Netzwerk</label>
@@ -242,6 +247,7 @@ B 0.3s
           </div>
           <button type="submit" class="btn btn-primary btn-block">Verbinden</button>
           <div id="m-connect-error" class="error-message hidden"></div>
+          <button type="button" id="m-connect-retry-btn" class="btn btn-warning btn-block hidden">⚠️ Erneut versuchen</button>
         </form>
       </section>
 

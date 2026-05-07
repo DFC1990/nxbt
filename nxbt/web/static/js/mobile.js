@@ -25,6 +25,8 @@ let state = {
   controllerState: { x: 0, y: 0 },
   logLines: [],
   lastLogIndex: 0,
+  wifiConnecting: false,
+  wifiConnectController: null,
 };
 
 // Refs
@@ -98,6 +100,9 @@ function cacheElements() {
     scanLoading: document.getElementById('m-scan-loading'),
     networkList: document.getElementById('m-network-list'),
     connectForm: document.getElementById('m-connect-form'),
+    connectStatus: document.getElementById('m-connect-status'),
+    connectCancelBtn: document.getElementById('m-connect-cancel-btn'),
+    connectRetryBtn: document.getElementById('m-connect-retry-btn'),
     ssidInput: document.getElementById('m-ssid-input'),
     pwInput: document.getElementById('m-pw-input'),
     connectError: document.getElementById('m-connect-error'),
@@ -541,6 +546,11 @@ function bindWiFi() {
   refs.hotspotToggleBtn.addEventListener('click', toggleHotspot);
   refs.scanBtn.addEventListener('click', scanNetworks);
   refs.connectForm.addEventListener('submit', handleConnectSubmit);
+  refs.connectCancelBtn.addEventListener('click', cancelConnect);
+  refs.connectRetryBtn.addEventListener('click', () => {
+    refs.connectRetryBtn.classList.add('hidden');
+    refs.connectError.classList.add('hidden');
+  });
 }
 
 function updateWiFiStatus() {
@@ -648,20 +658,27 @@ function handleConnectSubmit(e) {
     return;
   }
 
-  refs.connectForm.querySelector('button[type="submit"]').disabled = true;
+  state.wifiConnecting = true;
+  state.wifiConnectController = new AbortController();
+  refs.connectForm.classList.add('hidden');
+  refs.connectStatus.classList.remove('hidden');
   refs.connectError.classList.add('hidden');
 
   fetch(API.wifiConnect, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ssid: ssid, password: password }),
+    signal: state.wifiConnectController.signal,
   })
     .then(r => r.json())
     .then(data => {
+      if (!state.wifiConnecting) return; // Cancelled
+
       if (data.ok) {
         refs.connectForm.reset();
-        refs.connectForm.classList.add('hidden');
+        refs.connectStatus.classList.add('hidden');
         refs.networkList.classList.add('hidden');
+        refs.connectRetryBtn.classList.add('hidden');
         showConnectError('', false);
 
         setTimeout(() => {
@@ -672,12 +689,33 @@ function handleConnectSubmit(e) {
         alert('Erfolgreich verbunden!');
       } else {
         showConnectError(data.error || 'Verbindung fehlgeschlagen');
+        refs.connectStatus.classList.add('hidden');
+        refs.connectForm.classList.remove('hidden');
+        refs.connectRetryBtn.classList.remove('hidden');
       }
     })
-    .catch(e => showConnectError('Fehler: ' + e.message))
+    .catch(e => {
+      if (e.name === 'AbortError') {
+        refs.connectStatus.classList.add('hidden');
+        refs.connectForm.classList.remove('hidden');
+        showConnectError('Verbindung abgebrochen');
+        refs.connectRetryBtn.classList.remove('hidden');
+      } else {
+        showConnectError('Fehler: ' + e.message);
+        refs.connectStatus.classList.add('hidden');
+        refs.connectForm.classList.remove('hidden');
+        refs.connectRetryBtn.classList.remove('hidden');
+      }
+    })
     .finally(() => {
-      refs.connectForm.querySelector('button[type="submit"]').disabled = false;
+      state.wifiConnecting = false;
     });
+}
+
+function cancelConnect() {
+  if (state.wifiConnectController) {
+    state.wifiConnectController.abort();
+  }
 }
 
 function showConnectError(msg, show = true) {
