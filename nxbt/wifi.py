@@ -42,7 +42,13 @@ def _run(args: list, timeout: int = 10) -> tuple:
 
     Returns (None, '', '') if binary not found or on other errors.
     Returns (-1, '', 'timeout') on timeout.
+
+    nmcli commands are prefixed with sudo if not running as root.
     """
+    # nmcli needs elevated privileges; use sudo if not root
+    if os.geteuid() != 0 and args and args[0] == "nmcli":
+        args = ["sudo"] + args
+
     try:
         proc = subprocess.run(
             args, capture_output=True, text=True, timeout=timeout
