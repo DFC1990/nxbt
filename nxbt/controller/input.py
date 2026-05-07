@@ -148,8 +148,21 @@ class InputParser():
         return
 
     def set_controller_input(self, controller_input):
+        if controller_input is None:
+            self.controller_input = None
+            return
 
-        self.controller_input = controller_input
+        # Merge with idle packet template to ensure all required keys are present
+        normalized_input = {**DIRECT_INPUT_IDLE_PACKET}
+        if isinstance(controller_input, dict):
+            # Update with provided values, handling nested dicts (sticks)
+            for key, value in controller_input.items():
+                if key in ("L_STICK", "R_STICK") and isinstance(value, dict):
+                    normalized_input[key] = {**normalized_input[key], **value}
+                else:
+                    normalized_input[key] = value
+
+        self.controller_input = normalized_input
     
     def commands_queued(self):
         check = dumps(self.controller_input) != dumps(DIRECT_INPUT_IDLE_PACKET)
