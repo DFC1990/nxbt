@@ -147,6 +147,24 @@ cd "$REPO_DIR"
 pip install -e . --upgrade
 
 log_success "Pakete installiert"
+log_info "Neue Packages: Flask-Limiter (Rate Limiting), eventlet 0.37+ (Python 3.12+ Support)"
+
+# ============================================================================
+# Step 4b: Security Setup (Secrets & Directories)
+# ============================================================================
+
+print_step "Schritt 4b: Sicherheits-Setup"
+
+log_info "Erstelle ~/.nxbt Verzeichnisse..."
+mkdir -p ~/.nxbt/macros
+chmod 700 ~/.nxbt
+chmod 700 ~/.nxbt/macros
+log_success "Verzeichnisse erstellt mit sicheren Permissions"
+
+log_info "Alte secrets.txt wird ignoriert (neue Version nutzt ~/.nxbt/secrets)"
+if [ -f "$REPO_DIR/nxbt/web/secrets.txt" ]; then
+  log_warning "Alte secrets.txt sollte manuell gelöscht werden: rm $REPO_DIR/nxbt/web/secrets.txt"
+fi
 
 # ============================================================================
 # Step 5: Systemd Service aktualisieren
@@ -257,6 +275,13 @@ echo "  3. Öffne http://192.168.4.1:8000/mobile im Browser"
 echo ""
 echo "Logs live anschauen:"
 echo "  journalctl -u nxbt -f"
+echo ""
+echo "🆕 Neue Features in dieser Version:"
+echo "  ✓ Mobile UI mit vollständigem Makro-Manager"
+echo "  ✓ Virtual Gamepad zum direkten Steuern"
+echo "  ✓ WiFi Hotspot Auto-Connect"
+echo "  ✓ Rate Limiting & Security Fixes"
+echo "  ✓ Secrets in ~/.nxbt/ (sicherer)"
 echo ""
 
 # ============================================================================

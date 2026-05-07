@@ -1,4 +1,4 @@
-/* NXBT Mobile UI - Dark theme, minimal framework-free CSS */
+/* NXBT Mobile Control - Full Featured Macro Manager + Virtual Gamepad */
 
 :root {
   --bg-primary: #1a1a1a;
@@ -8,9 +8,10 @@
   --text-secondary: #aaaaaa;
   --border-color: #404040;
   --accent-blue: #1e88e5;
+  --accent-green: #43a047;
   --accent-danger: #d32f2f;
-  --accent-success: #43a047;
   --accent-warning: #fbc02d;
+  --accent-purple: #7b1fa2;
   --radius-small: 4px;
   --radius-medium: 8px;
 }
@@ -26,7 +27,7 @@ html, body {
   height: 100%;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -37,9 +38,9 @@ html, body {
    ============================================================================ */
 
 #m-header {
-  background-color: var(--bg-secondary);
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
   border-bottom: 1px solid var(--border-color);
-  padding: 1rem;
+  padding: 0.75rem;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -49,14 +50,14 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 480px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
 #m-header h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
 }
 
 .status-dot {
@@ -72,7 +73,8 @@ html, body {
 }
 
 .status-dot.running {
-  background-color: var(--accent-success);
+  background-color: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
 }
 
 .status-dot.error {
@@ -88,15 +90,18 @@ html, body {
    Running Banner
    ============================================================================ */
 
-#m-running-banner {
-  background: linear-gradient(135deg, var(--accent-success), #2e7d32);
+.banner {
   padding: 1rem;
   color: #ffffff;
-  border-bottom: 1px solid var(--accent-success);
+  border-bottom: 1px solid #666;
+}
+
+.banner.running {
+  background: linear-gradient(135deg, var(--accent-green), #2e7d32);
 }
 
 .banner-content {
-  max-width: 480px;
+  max-width: 600px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -104,9 +109,9 @@ html, body {
   gap: 1rem;
 }
 
-#m-running-banner .label {
+.banner .label {
   opacity: 0.9;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 #m-running-name {
@@ -115,22 +120,72 @@ html, body {
   margin-top: 0.25rem;
 }
 
-#m-running-banner .btn {
-  flex-shrink: 0;
-}
-
 .hidden {
   display: none !important;
 }
 
 /* ============================================================================
-   Main Container & Sections
+   Tab Navigation
+   ============================================================================ */
+
+.tab-nav {
+  display: flex;
+  background-color: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 60px;
+  z-index: 99;
+  gap: 0;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tab-button.active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+}
+
+.tab-button:active {
+  background-color: #3a3a3a;
+}
+
+/* ============================================================================
+   Tab Content
+   ============================================================================ */
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ============================================================================
+   Container & Sections
    ============================================================================ */
 
 main {
-  max-width: 480px;
+  max-width: 600px;
   margin: 0 auto;
   padding: 1rem;
+}
+
+.container {
+  width: 100%;
 }
 
 .section {
@@ -142,96 +197,47 @@ main {
 }
 
 .section h2 {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: var(--accent-blue);
 }
 
-.section p {
-  line-height: 1.5;
-}
-
 /* ============================================================================
-   Macros Section
+   Status & Status Box
    ============================================================================ */
 
-.macro-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.macro-card {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-small);
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  transition: all 0.2s ease;
-}
-
-.macro-card:active {
-  background-color: #4a4a4a;
-}
-
-.macro-card-name {
-  flex: 1;
-  font-weight: 500;
-  word-break: break-word;
-}
-
-.macro-card .btn {
-  flex-shrink: 0;
-  width: 56px;
-}
-
-.empty-message {
-  color: var(--text-secondary);
-  text-align: center;
-  padding: 2rem 1rem;
-  font-size: 0.9rem;
-}
-
-/* ============================================================================
-   WiFi Status & Hotspot
-   ============================================================================ */
-
+.status-box,
 .wifi-status,
-.hotspot-row,
-.status-row {
+.gamepad-info {
   background-color: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-small);
   padding: 0.75rem;
-  margin-bottom: 0.75rem;
+}
+
+.status-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.status-row {
-  margin-bottom: 0;
-}
-
-.status-row:not(:last-child) {
-  margin-bottom: 0.5rem;
-}
-
-.status-row .label,
-.hotspot-row .label {
-  color: var(--text-secondary);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
   font-size: 0.9rem;
-  flex: 0 0 70px;
 }
 
-.status-row .value,
-.hotspot-row .value {
-  flex: 1;
+.status-line:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.status-line .label {
+  color: var(--text-secondary);
+  flex: 0 0 100px;
+}
+
+.status-line .value {
   text-align: right;
+  flex: 1;
   word-break: break-all;
 }
 
@@ -239,15 +245,483 @@ main {
   color: var(--text-secondary);
 }
 
-.hint {
+/* Progress Bar */
+.progress-bar {
+  height: 6px;
+  background-color: var(--bg-tertiary);
+  border-radius: 3px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+  transition: width 0.1s ease;
+}
+
+/* ============================================================================
+   Forms & Inputs
+   ============================================================================ */
+
+.form-group {
+  margin-bottom: 0.75rem;
+}
+
+.form-group:last-child {
+  margin-bottom: 0.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
   color: var(--text-secondary);
   font-size: 0.85rem;
-  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.6rem;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-small);
+  color: var(--text-primary);
+  font-size: 16px;  /* Prevents iOS zoom */
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.form-group textarea {
+  resize: none;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background-color: #4a4a4a;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+.hint {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-top: 0.3rem;
   line-height: 1.4;
 }
 
 /* ============================================================================
-   WiFi Connect Section
+   Macro Editor & List
+   ============================================================================ */
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.button-group .btn {
+  flex: 1;
+  min-width: 100px;
+}
+
+.macro-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.macro-card {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-small);
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.macro-card:active {
+  background-color: #4a4a4a;
+  border-color: var(--accent-blue);
+}
+
+.macro-card-name {
+  flex: 1;
+  font-weight: 500;
+  word-break: break-word;
+  font-size: 0.95rem;
+}
+
+.macro-card-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.macro-card .btn {
+  width: 40px;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.empty-message {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   Virtual Gamepad
+   ============================================================================ */
+
+.control-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  justify-content: space-around;
+  align-items: flex-start;
+}
+
+/* D-Pad */
+.dpad-container {
+  display: grid;
+  grid-template-columns: 60px;
+  grid-template-rows: 60px 60px 60px;
+  gap: 5px;
+}
+
+.dpad-middle {
+  display: grid;
+  grid-template-columns: 60px 60px 60px;
+  gap: 5px;
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.btn-dpad {
+  width: 60px;
+  height: 60px;
+  border-radius: 30%;
+  background-color: #555;
+  border: 2px solid #777;
+  color: white;
+  font-weight: bold;
+  font-size: 1.2rem;
+  cursor: pointer;
+  user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-dpad:active {
+  background-color: #333;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 10px rgba(30, 136, 229, 0.5);
+}
+
+.btn-dpad-up { grid-column: 1; grid-row: 1; }
+.btn-dpad-left { grid-column: 1; grid-row: 2; }
+.btn-dpad-right { grid-column: 3; grid-row: 2; }
+.btn-dpad-down { grid-column: 1; grid-row: 3; }
+
+.dpad-center {
+  background-color: var(--bg-tertiary);
+  border-radius: 50%;
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* Action Buttons (ABXY) */
+.buttons-container {
+  display: grid;
+  grid-template-columns: 60px 60px;
+  grid-template-rows: 60px 60px;
+  gap: 5px;
+}
+
+.btn-action {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid #666;
+  color: white;
+  font-weight: bold;
+  font-size: 1.3rem;
+  cursor: pointer;
+  user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-action:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+.btn-action-y {
+  background-color: #ffeb3b;
+  color: #000;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.btn-action-y:active {
+  background-color: #fdd835;
+}
+
+.btn-action-x {
+  background-color: #2196f3;
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.btn-action-x:active {
+  background-color: #1976d2;
+}
+
+.btn-action-a {
+  background-color: #4caf50;
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.btn-action-a:active {
+  background-color: #388e3c;
+}
+
+.btn-action-b {
+  background-color: #f44336;
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  left: 65px;
+}
+
+.btn-action-b:active {
+  background-color: #d32f2f;
+}
+
+/* Shoulder Buttons */
+.btn-shoulder {
+  width: 100%;
+  padding: 0.7rem;
+  background-color: #555;
+  border: 2px solid #777;
+  border-radius: 4px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.btn-shoulder:active {
+  background-color: #333;
+  border-color: var(--accent-blue);
+}
+
+.btn-menu {
+  flex: 1;
+  padding: 0.6rem;
+  background-color: #666;
+  border: 2px solid #888;
+  border-radius: var(--radius-small);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-menu:active {
+  background-color: #444;
+  border-color: var(--accent-blue);
+}
+
+/* Virtual Sticks */
+.stick-row {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stick-container {
+  flex: 1;
+  text-align: center;
+}
+
+.stick-container label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.virtual-stick {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 0.5rem;
+  background: radial-gradient(circle, var(--bg-tertiary) 0%, var(--border-color) 100%);
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.virtual-stick::after {
+  content: '';
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background-color: var(--accent-blue);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: all 0.05s ease;
+}
+
+.stick-values {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+
+.btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius-small);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background-color: var(--accent-blue);
+  color: white;
+}
+
+.btn-primary:active {
+  background-color: #1565c0;
+}
+
+.btn-success {
+  background-color: var(--accent-green);
+  color: white;
+}
+
+.btn-success:active {
+  background-color: #2e7d32;
+}
+
+.btn-danger {
+  background-color: var(--accent-danger);
+  color: white;
+  width: 70px;
+}
+
+.btn-danger:active {
+  background-color: #b71c1c;
+}
+
+.btn-secondary {
+  background-color: #666;
+  color: white;
+}
+
+.btn-secondary:active {
+  background-color: #555;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.btn-block {
+  width: 100%;
+  display: flex;
+}
+
+/* ============================================================================
+   Messages & Status
+   ============================================================================ */
+
+.message {
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  border-radius: var(--radius-small);
+  font-size: 0.85rem;
+  border-left: 4px solid var(--accent-blue);
+  background-color: rgba(30, 136, 229, 0.1);
+  color: var(--accent-blue);
+}
+
+.message.error {
+  border-left-color: var(--accent-danger);
+  background-color: rgba(211, 47, 47, 0.1);
+  color: var(--accent-danger);
+}
+
+.message.success {
+  border-left-color: var(--accent-green);
+  background-color: rgba(67, 160, 71, 0.1);
+  color: var(--accent-green);
+}
+
+.error-message {
+  background-color: rgba(211, 47, 47, 0.15);
+  color: var(--accent-danger);
+  padding: 0.75rem;
+  border-radius: var(--radius-small);
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* ============================================================================
+   Network & WiFi
    ============================================================================ */
 
 .scan-loading {
@@ -306,131 +780,57 @@ main {
 }
 
 .signal-bar {
-  width: 3px;
-  height: 8px;
+  width: 2px;
   background-color: var(--accent-warning);
   border-radius: 1px;
 }
 
-.signal-bar:nth-child(1) { height: 4px; }
-.signal-bar:nth-child(2) { height: 6px; }
-.signal-bar:nth-child(3) { height: 8px; }
-.signal-bar:nth-child(4) { height: 10px; }
-
 .network-lock {
   color: var(--text-secondary);
-  font-size: 1.2rem;
+  font-size: 1rem;
   margin-left: 0.5rem;
 }
 
 /* ============================================================================
-   Forms
+   Log Viewer
    ============================================================================ */
 
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group:last-child {
-  margin-bottom: 0.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 0.75rem;
+.log-viewer {
   background-color: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-small);
-  color: var(--text-primary);
-  font-size: 16px;  /* Prevents iOS zoom on focus */
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: var(--accent-blue);
-  background-color: #4a4a4a;
-}
-
-.form-group input::placeholder {
-  color: var(--text-secondary);
-}
-
-/* ============================================================================
-   Buttons
-   ============================================================================ */
-
-.btn {
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: var(--radius-small);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-  -webkit-appearance: none;
-  appearance: none;
-  min-height: 48px;  /* WCAG 2.5.5 minimum tap target */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-primary {
-  background-color: var(--accent-blue);
-  color: #ffffff;
-}
-
-.btn-primary:active {
-  background-color: #1565c0;
-}
-
-.btn-danger {
-  background-color: var(--accent-danger);
-  color: #ffffff;
-  min-width: 70px;
-}
-
-.btn-danger:active {
-  background-color: #b71c1c;
-}
-
-.btn-secondary {
-  background-color: var(--accent-warning);
-  color: #000000;
-}
-
-.btn-secondary:active {
-  background-color: #e6b800;
-}
-
-.btn-block {
-  width: 100%;
-  display: flex;
-}
-
-/* ============================================================================
-   Messages
-   ============================================================================ */
-
-.error-message {
-  background-color: rgba(211, 47, 47, 0.15);
-  color: var(--accent-danger);
   padding: 0.75rem;
-  border-radius: var(--radius-small);
-  margin-top: 0.75rem;
-  font-size: 0.9rem;
+  max-height: 250px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
   line-height: 1.4;
+}
+
+.log-entry {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-time {
+  color: var(--text-secondary);
+  margin-right: 0.5rem;
+}
+
+.log-info {
+  color: var(--accent-blue);
+}
+
+.log-success {
+  color: var(--accent-green);
+}
+
+.log-error {
+  color: var(--accent-danger);
 }
 
 /* ============================================================================
@@ -438,7 +838,7 @@ main {
    ============================================================================ */
 
 .footer {
-  max-width: 480px;
+  max-width: 600px;
   margin: 2rem auto 1rem;
   padding: 0 1rem;
   text-align: center;
@@ -446,8 +846,7 @@ main {
 
 .footer p {
   color: var(--text-secondary);
-  font-size: 0.8rem;
-  line-height: 1.4;
+  font-size: 0.75rem;
 }
 
 .small {
@@ -459,26 +858,28 @@ main {
 }
 
 /* ============================================================================
-   Media Queries
+   Responsive
    ============================================================================ */
 
 @media (max-height: 600px) {
   main {
     padding: 0.75rem;
   }
-
   .section {
     padding: 0.75rem;
     margin-bottom: 0.75rem;
   }
-
-  .section h2 {
-    margin-bottom: 0.75rem;
-    font-size: 1rem;
+  .dpad-container,
+  .virtual-stick {
+    width: 100px;
+    height: 100px;
+  }
+  .btn-dpad {
+    width: 50px;
+    height: 50px;
   }
 }
 
-/* iPad or larger */
 @media (min-width: 600px) {
   main {
     border-left: 1px solid var(--border-color);
