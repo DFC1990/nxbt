@@ -360,7 +360,12 @@ def _resolve_controller_index(payload):
         if idx is not None and idx is not False:
             return int(idx)
 
-    state_proxy = nxbt.state.copy()
+    try:
+        state_proxy = nxbt.state.copy()
+    except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
+        log.error(f"Manager state unavailable in _resolve_controller_index: {e}")
+        raise ValueError("Controller-Status nicht verfugbar. Bitte neustarten.")
+
     for index in state_proxy.keys():
         try:
             if state_proxy[index]["state"] == "connected":
@@ -591,10 +596,19 @@ def _update_runtime_status(plan, current_index, step, started_monotonic, current
 
 
 def _check_controller_state(controller_index):
-    state = nxbt.state.get(controller_index)
+    try:
+        state = nxbt.state.get(controller_index)
+    except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
+        log.error(f"Manager state unavailable in _check_controller_state: {e}")
+        raise RuntimeError("Controller-Status nicht verfugbar. Bitte neustarten.")
+
     if state is None:
+        try:
+            known_indices = list(nxbt.state.keys())
+        except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError):
+            known_indices = []
         log.error("Controller %s nicht im State gefunden. Bekannte Indices: %s",
-                  controller_index, list(nxbt.state.keys()))
+                  controller_index, known_indices)
         raise RuntimeError("Controller ist nicht mehr verfuegbar")
     if state.get("state") == "crashed":
         errors = state.get("errors") or ""
@@ -817,7 +831,12 @@ def _start_macro_runner(content, payload, debug_mode=False):
 
     # Pre-flight: verify the controller is actually connected before spawning a thread.
     # Without this, the crash is only discovered mid-execution and reported as a crash error.
-    controller_preflight = nxbt.state.get(controller_index)
+    try:
+        controller_preflight = nxbt.state.get(controller_index)
+    except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
+        log.error(f"Manager state unavailable in _start_macro_runner: {e}")
+        raise ValueError("Controller-Status nicht verfugbar. Bitte neustarten.")
+
     if controller_preflight is None:
         raise ValueError("Controller nicht gefunden. Bitte 'Recreate Controller' klicken.")
     if controller_preflight.get("state") == "crashed":
@@ -1057,11 +1076,15 @@ def on_connect():
 
 @sio.on('state')
 def on_state():
-    state_proxy = nxbt.state.copy()
-    state = {}
-    for controller in state_proxy.keys():
-        state[controller] = state_proxy[controller].copy()
-    emit('state', state)
+    try:
+        state_proxy = nxbt.state.copy()
+        state = {}
+        for controller in state_proxy.keys():
+            state[controller] = state_proxy[controller].copy()
+        emit('state', state)
+    except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
+        log.error(f"Failed to access controller state: {e}")
+        emit('state', {})
 
 
 @sio.on('disconnect')

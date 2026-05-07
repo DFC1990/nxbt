@@ -698,6 +698,22 @@ class Nxbt():
 
         return self.manager_state
 
+    def _is_manager_alive(self):
+        """Check if the multiprocessing manager is still alive and accessible."""
+        try:
+            self.manager_state._getvalue()
+            return True
+        except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError):
+            return False
+
+    def get_state_safe(self):
+        """Safely retrieve state dict. Returns empty dict if manager is unavailable."""
+        try:
+            return dict(self.manager_state)
+        except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
+            self.logger.error(f"Manager state unavailable: {e}")
+            return {}
+
 
 class _ControllerManager():
     """Used as the manager for all controllers. Each controller is
