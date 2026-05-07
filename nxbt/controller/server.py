@@ -255,9 +255,9 @@ class ControllerServer():
                 finally:
                     if self.lock:
                         self.lock.release()
-            except OSError:
+            except OSError as e:
                 self.reconnect_counter += 1
-                self.logger.debug(error)
+                self.logger.debug(f"Reconnect attempt {self.reconnect_counter} failed: {e}")
                 time.sleep(0.5)
 
         # If we can't reconnect, transition to attempting

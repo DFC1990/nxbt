@@ -16,6 +16,8 @@ from ..nxbt import Nxbt, PRO_CONTROLLER
 from .. import wifi as nxbt_wifi
 from flask import Flask, jsonify, render_template, request, redirect
 from flask_socketio import SocketIO, emit
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import eventlet
 
 
@@ -32,26 +34,40 @@ log = logging.getLogger('nxbt.webapp')
 
 nxbt = Nxbt()
 
-# Configuring/retrieving secret key
-secrets_path = os.path.join(
-    os.path.dirname(__file__), "secrets.txt"
-)
+# Configuring/retrieving secret key (stored in ~/.nxbt/secrets)
+secrets_dir = os.path.expanduser('~/.nxbt')
+os.makedirs(secrets_dir, mode=0o700, exist_ok=True)
+secrets_path = os.path.join(secrets_dir, "secrets")
+
 if not os.path.isfile(secrets_path):
     secret_key = os.urandom(24).hex()
-    with open(secrets_path, "w") as file_handle:
-        file_handle.write(secret_key)
+    # Speichere mit restriktiven Permissions (nur Besitzer lesen)
+    with open(secrets_path, "w") as fh:
+        fh.write(secret_key)
+    os.chmod(secrets_path, 0o600)  # rw-------
 else:
-    secret_key = None
-    with open(secrets_path, "r") as file_handle:
-        secret_key = file_handle.read()
+    with open(secrets_path, "r") as fh:
+        secret_key = fh.read().strip()
 app.config['SECRET_KEY'] = secret_key
 
 # Starting socket server with Flask app
 sio = SocketIO(app, cookie=False)
 
+# Rate limiting für kritische Endpoints
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"  # In-memory storage für Pi
+)
+
 user_info_lock = RLock()
 USER_INFO = {}
-MACRO_DIRECTORY = "/home/dfernandez/nxbt-macros"
+# MACRO_DIRECTORY: aus Umgebungsvariable oder ~/.nxbt/macros
+MACRO_DIRECTORY = os.environ.get(
+    'NXBT_MACRO_DIR',
+    os.path.expanduser('~/.nxbt/macros')
+)
 MACRO_MAX_SIZE = 100 * 1024
 MACRO_FILENAME_RE = re.compile(r"^[A-Za-z0-9 _.\-]+$")
 MACRO_DURATION_RE = re.compile(r"^(\d+(?:\.\d+)?)s$", re.IGNORECASE)
@@ -925,6 +941,7 @@ def get_macro(name):
 
 
 @app.route('/api/macros', methods=['POST'])
+@limiter.limit("30 per minute")
 def save_macro():
     payload = request.get_json(silent=True) or {}
     name = payload.get('name', '')
@@ -951,6 +968,7 @@ def save_macro():
 
 
 @app.route('/api/macros/<name>', methods=['DELETE'])
+@limiter.limit("20 per minute")
 def delete_macro(name):
     try:
         normalized, path = _macro_file_path(name)
@@ -964,6 +982,7 @@ def delete_macro(name):
 
 
 @app.route('/api/macros/run', methods=['POST'])
+@limiter.limit("10 per minute")  # Max 10 macro runs per minute
 def run_macro():
     payload = request.get_json(silent=True) or {}
 
@@ -1345,6 +1364,22 @@ def captive_portal_android():
 @app.route('/hotspot-detect.html')
 def captive_portal_apple():
     """Apple (iOS/macOS) captive portal detection endpoint."""
+    return redirect('/mobile')
+
+
+@app.errorhandler(404)
+def captive_portal_fallback(e):
+    """Redirect any unknown URL to /mobile for captive portal experience.
+
+    This ensures that no matter what URL the user tries to visit,
+    they get redirected to the mobile UI. This is especially useful
+    when connected to the NXBT hotspot.
+    """
+    # Don't redirect static files or API calls
+    if request.path.startswith('/static/') or request.path.startswith('/api/'):
+        return e
+
+    # Redirect everything else to /mobile
     return redirect('/mobile')
 
 

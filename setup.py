@@ -12,8 +12,9 @@ setup(
         "Flask>=3.1.0,<4",
         "Werkzeug>=3.1.0,<4",
         "Flask-SocketIO>=5.4.1,<6",
-        # eventlet 0.36+ has improved Python 3.12/3.13 greenlet compatibility
-        "eventlet>=0.36.1,<0.38",
+        "Flask-Limiter>=3.5.0",
+        # eventlet 0.37+ improved Python 3.12/3.13 greenlet compatibility
+        "eventlet>=0.37.0,<0.39",
         "blessed>=1.20.0",
         "pynput>=1.7.6",
         # psutil 6.x cleans up deprecated APIs; pure-Python fallback on ARM

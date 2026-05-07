@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>NXBT Mobile</title>
+  <title>NXBT Mobile Control</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="css/mobile.css">
 </head>
@@ -23,91 +23,244 @@
   <div id="m-running-banner" class="banner running hidden">
     <div class="banner-content">
       <div>
-        <span class="label">Läuft:</span>
+        <span class="label">Makro läuft:</span>
         <span id="m-running-name" class="macro-name">---</span>
       </div>
       <button id="m-stop-btn" class="btn btn-danger">Stop</button>
     </div>
   </div>
 
+  <!-- Tab Navigation -->
+  <nav class="tab-nav">
+    <button class="tab-button active" data-tab="macros">📋 Makros</button>
+    <button class="tab-button" data-tab="gamepad">🎮 Controller</button>
+    <button class="tab-button" data-tab="settings">⚙️ Einstellungen</button>
+  </nav>
+
   <!-- Main Content -->
   <main class="container">
 
-    <!-- Macros Section -->
-    <section class="section">
-      <h2>Makros</h2>
-      <div id="m-macro-list" class="macro-list">
-        <!-- Populated by mobile.js -->
-      </div>
-      <p id="m-macro-empty" class="empty-message">Keine Makros gefunden.</p>
-    </section>
+    <!-- ===================== MACROS TAB ===================== -->
+    <div id="tab-macros" class="tab-content active">
 
-    <!-- WiFi Status Section -->
-    <section class="section">
-      <h2>Netzwerk</h2>
-      <div class="wifi-status">
-        <div class="status-row">
-          <span class="label">WLAN:</span>
-          <span id="m-wifi-ssid" class="value">---</span>
+      <!-- Macro Status -->
+      <section class="section">
+        <h2>Status</h2>
+        <div class="status-box">
+          <div class="status-line">
+            <span class="label">Status:</span>
+            <span id="m-exec-status" class="value">Bereit</span>
+          </div>
+          <div class="status-line">
+            <span class="label">Schritt:</span>
+            <span id="m-exec-step" class="value">-</span>
+          </div>
+          <div id="m-exec-progress" class="progress-bar hidden">
+            <div class="progress-fill" style="width: 0%"></div>
+          </div>
         </div>
-        <div class="status-row">
-          <span class="label">IP:</span>
-          <span id="m-wifi-ip" class="value muted">---</span>
-        </div>
-        <div class="status-row">
-          <span class="label">Signal:</span>
-          <span id="m-wifi-signal" class="value muted">---</span>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Hotspot Control -->
-    <section class="section">
-      <h2>Hotspot</h2>
-      <p class="hint" id="m-hotspot-hint">Wenn keine WLAN-Verbindung verfügbar ist, startet der Hotspot automatisch.</p>
-      <div class="hotspot-row">
-        <span class="label">Status:</span>
-        <span id="m-hotspot-status" class="value">--</span>
-      </div>
-      <button id="m-hotspot-toggle-btn" class="btn btn-secondary btn-block">Hotspot einschalten</button>
-    </section>
-
-    <!-- WiFi Connect Section -->
-    <section class="section">
-      <h2>Zu WLAN verbinden</h2>
-      <button id="m-scan-btn" class="btn btn-primary btn-block">Netzwerke suchen</button>
-
-      <!-- Scan loading state -->
-      <div id="m-scan-loading" class="scan-loading hidden">
-        <p>Suche läuft...</p>
-      </div>
-
-      <!-- Network list -->
-      <div id="m-network-list" class="network-list hidden">
-        <!-- Populated by mobile.js: list of networks -->
-      </div>
-
-      <!-- Connect form -->
-      <form id="m-connect-form" class="hidden">
+      <!-- Create/Edit Macro -->
+      <section class="section">
+        <h2>Makro Editor</h2>
         <div class="form-group">
-          <label for="m-ssid-input">SSID/Netzwerk</label>
-          <input id="m-ssid-input" type="text" placeholder="z.B. MyNetwork" autocomplete="off">
+          <label for="m-macro-name">Name</label>
+          <input id="m-macro-name" type="text" placeholder="z.B. Menu-Trick" maxlength="50">
         </div>
         <div class="form-group">
-          <label for="m-pw-input">Passwort</label>
-          <input id="m-pw-input" type="password" placeholder="Passwort" autocomplete="off">
+          <label for="m-macro-content">Code</label>
+          <textarea id="m-macro-content" placeholder="A 0.2s
+0.1s
+B 0.3s
+..." rows="6"></textarea>
+          <p class="hint">Syntax: BUTTON DURATION oder einfach DURATION</p>
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Verbinden</button>
-        <div id="m-connect-error" class="error-message hidden"></div>
-      </form>
-    </section>
+        <div class="button-group">
+          <button id="m-new-macro-btn" class="btn btn-primary">+ Neu</button>
+          <button id="m-save-macro-btn" class="btn btn-success">💾 Speichern</button>
+          <button id="m-clear-macro-btn" class="btn btn-secondary">Löschen</button>
+        </div>
+        <div id="m-editor-message" class="message hidden"></div>
+      </section>
 
-    <!-- Footer hint -->
-    <footer class="footer">
-      <p class="muted small">Hinweis: Der Pi hat nur ein WLAN-Radio. Beim Verbinden zu einem WLAN wird der Hotspot automatisch ausgeschaltet.</p>
-    </footer>
+      <!-- Macro List & Quick Run -->
+      <section class="section">
+        <h2>Makro-Bibliothek</h2>
+        <div id="m-macro-list" class="macro-list">
+          <!-- Populated by mobile.js -->
+        </div>
+        <p id="m-macro-empty" class="empty-message">Keine Makros vorhanden.<br>Erstelle ein neues Makro im Editor!</p>
+      </section>
+
+      <!-- Logs -->
+      <section class="section">
+        <h2>Live-Log</h2>
+        <button id="m-clear-logs-btn" class="btn btn-sm btn-secondary">Logs löschen</button>
+        <div id="m-log-viewer" class="log-viewer">
+          <p class="muted small">Logs werden hier angezeigt...</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ===================== GAMEPAD TAB ===================== -->
+    <div id="tab-gamepad" class="tab-content hidden">
+
+      <!-- Gamepad Info -->
+      <section class="section">
+        <h2>Controller Status</h2>
+        <div class="gamepad-info">
+          <div class="status-line">
+            <span class="label">Verbindung:</span>
+            <span id="m-controller-status" class="value">---</span>
+          </div>
+          <div class="status-line">
+            <span class="label">Controller:</span>
+            <span id="m-controller-type" class="value">---</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Virtual Gamepad -->
+      <section class="section">
+        <h2>Virtual Controller</h2>
+
+        <!-- D-Pad -->
+        <div class="control-row">
+          <div class="dpad-container">
+            <button class="btn-dpad btn-dpad-up" data-button="DPAD_UP" title="D-Pad Up">▲</button>
+            <div class="dpad-middle">
+              <button class="btn-dpad btn-dpad-left" data-button="DPAD_LEFT" title="D-Pad Left">◀</button>
+              <div class="dpad-center"></div>
+              <button class="btn-dpad btn-dpad-right" data-button="DPAD_RIGHT" title="D-Pad Right">▶</button>
+            </div>
+            <button class="btn-dpad btn-dpad-down" data-button="DPAD_DOWN" title="D-Pad Down">▼</button>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="buttons-container">
+            <button class="btn-action btn-action-y" data-button="Y">Y</button>
+            <button class="btn-action btn-action-x" data-button="X">X</button>
+            <button class="btn-action btn-action-a" data-button="A">A</button>
+            <button class="btn-action btn-action-b" data-button="B">B</button>
+          </div>
+        </div>
+
+        <!-- Shoulder Buttons -->
+        <div class="button-group">
+          <button class="btn btn-shoulder" data-button="L">L</button>
+          <button class="btn btn-shoulder" data-button="R">R</button>
+          <button class="btn btn-shoulder" data-button="ZL">ZL</button>
+          <button class="btn btn-shoulder" data-button="ZR">ZR</button>
+        </div>
+
+        <!-- Menu/Home Buttons -->
+        <div class="button-group">
+          <button class="btn btn-menu" data-button="MINUS">-</button>
+          <button class="btn btn-menu" data-button="PLUS">+</button>
+          <button class="btn btn-menu" data-button="HOME">HOME</button>
+        </div>
+
+        <!-- Stick Controls -->
+        <div class="stick-row">
+          <div class="stick-container">
+            <label>Left Stick</label>
+            <div class="virtual-stick" id="m-stick-left"></div>
+            <div class="stick-values">
+              <span id="m-stick-left-x">0</span> / <span id="m-stick-left-y">0</span>
+            </div>
+          </div>
+          <div class="stick-container">
+            <label>Right Stick</label>
+            <div class="virtual-stick" id="m-stick-right"></div>
+            <div class="stick-values">
+              <span id="m-stick-right-x">0</span> / <span id="m-stick-right-y">0</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="hint">Touchscreen: Drücke auf Buttons oder bewege den Joystick. Am PC: Tastatur-Shortcuts (WASD, Pfeiltasten, etc.)</p>
+      </section>
+
+    </div>
+
+    <!-- ===================== SETTINGS TAB ===================== -->
+    <div id="tab-settings" class="tab-content hidden">
+
+      <!-- Network Settings -->
+      <section class="section">
+        <h2>Netzwerk</h2>
+        <div class="wifi-status">
+          <div class="status-line">
+            <span class="label">WLAN:</span>
+            <span id="m-wifi-ssid" class="value">---</span>
+          </div>
+          <div class="status-line">
+            <span class="label">IP:</span>
+            <span id="m-wifi-ip" class="value muted">---</span>
+          </div>
+          <div class="status-line">
+            <span class="label">Signal:</span>
+            <span id="m-wifi-signal" class="value muted">---</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hotspot Control -->
+      <section class="section">
+        <h2>Hotspot</h2>
+        <div class="hotspot-row">
+          <span class="label">Status:</span>
+          <span id="m-hotspot-status" class="value">--</span>
+        </div>
+        <button id="m-hotspot-toggle-btn" class="btn btn-secondary btn-block">Hotspot einschalten</button>
+        <p class="hint">Automatisch aktiv, wenn keine WLAN-Verbindung vorhanden ist.</p>
+      </section>
+
+      <!-- WiFi Connect -->
+      <section class="section">
+        <h2>Mit WLAN verbinden</h2>
+        <button id="m-scan-btn" class="btn btn-primary btn-block">🔍 Netzwerke suchen</button>
+
+        <div id="m-scan-loading" class="scan-loading hidden">
+          <p>Suche läuft...</p>
+        </div>
+
+        <div id="m-network-list" class="network-list hidden">
+          <!-- Populated by mobile.js -->
+        </div>
+
+        <form id="m-connect-form" class="hidden">
+          <div class="form-group">
+            <label for="m-ssid-input">SSID/Netzwerk</label>
+            <input id="m-ssid-input" type="text" placeholder="z.B. MyNetwork" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="m-pw-input">Passwort</label>
+            <input id="m-pw-input" type="password" placeholder="Passwort" autocomplete="off">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Verbinden</button>
+          <div id="m-connect-error" class="error-message hidden"></div>
+        </form>
+      </section>
+
+      <!-- About -->
+      <section class="section">
+        <h2>Info</h2>
+        <p class="muted small">
+          NXBT Mobile Control<br>
+          Nintendo Switch Controller über WiFi
+        </p>
+      </section>
+
+    </div>
 
   </main>
+
+  <footer class="footer">
+    <p class="muted small">nxbt mobile 2024</p>
+  </footer>
 
   <script src="js/mobile.js"></script>
 </body>

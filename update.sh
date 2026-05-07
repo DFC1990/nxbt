@@ -12,7 +12,8 @@ BLUE='\033[0;36m'
 NC='\033[0m'
 
 # Konfiguration
-REPO_DIR="$HOME/Github/nxbt"
+# Nutze das Verzeichnis, in dem dieses Skript liegt, als Repo-Verzeichnis
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_PATH="$HOME/nxbt-env"
 SERVICE_NAME="nxbt"
 CURRENT_USER=$(whoami)
@@ -257,7 +258,38 @@ echo ""
 echo "Logs live anschauen:"
 echo "  journalctl -u nxbt -f"
 echo ""
-echo "Probleme? Siehe /plan im Repository für Details."
+
+# ============================================================================
+# Optional: Captive Portal Setup
+# ============================================================================
+
+echo ""
+log_info "Möchtest du auch Captive Portal einrichten?"
+echo "Damit werden ALLE URLs (z.B. google.com) automatisch zu der Mobile-UI geleitet."
+echo ""
+
+if confirm "Captive Portal jetzt einrichten? (j/n) "; then
+    echo ""
+    print_step "Richte Captive Portal ein..."
+
+    if sudo bash "$REPO_DIR/setup-captive-portal.sh"; then
+        log_success "Captive Portal eingerichtet!"
+        echo ""
+        echo "Jetzt kannst du:"
+        echo "  - Verbinde dich mit 'NXBT-CONTROL' WiFi"
+        echo "  - Gib JEDEN URL ein (z.B. google.com)"
+        echo "  - Wird automatisch zu http://192.168.4.1:8000/mobile geleitet"
+    else
+        log_error "Captive Portal Setup fehlgeschlagen"
+    fi
+else
+    log_info "Captive Portal Setup übersprungen."
+    echo "Du kannst es später manuell einrichten:"
+    echo "  sudo bash $REPO_DIR/setup-captive-portal.sh"
+fi
+
+echo ""
+echo "Probleme? Siehe Plan-Datei im Repository für Details."
 echo ""
 
 deactivate  # Virtualenv deaktivieren
