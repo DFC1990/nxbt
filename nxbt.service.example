@@ -26,15 +26,11 @@ BindsTo=bluetooth.service
 [Service]
 Type=simple
 
-# Benutzerkonto, das NXBT ausfuehrt.
-# Muss in der Gruppe 'bluetooth' sein: sudo usermod -aG bluetooth dfernandez
-User=dfernandez
-Group=bluetooth
-
-# Capabilities fuer WiFi AP-Verwaltung via nmcli.
-# CAP_NET_ADMIN: nachweis von AP/Netzwerk-Verbindungen
-# CAP_NET_RAW: Datenverkehr analysieren (WiFi-Scan, Signal)
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+# Root benoetigt fuer:
+# - toggle_clean_bluez: schreibt /run/systemd/system/bluetooth.service.d/
+# - systemctl daemon-reload / restart bluetooth
+# - Bluetooth HID-Ports binden (port 17/19)
+User=root
 
 # Pfad zur aktivierten virtualenv-Installation.
 ExecStart=/home/dfernandez/nxbt-env/bin/nxbt webapp --ip 0.0.0.0 --port 8000

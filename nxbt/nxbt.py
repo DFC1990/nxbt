@@ -178,7 +178,14 @@ class Nxbt():
 
         # Disable the BlueZ input plugin so we can use the
         # HID control/interrupt Bluetooth ports
-        toggle_clean_bluez(True)
+        try:
+            toggle_clean_bluez(True)
+        except PermissionError:
+            self.logger.warning(
+                "toggle_clean_bluez requires root. "
+                "Run: sudo nxbt webapp OR add CAP_DAC_OVERRIDE to the service. "
+                "Bluetooth connection may fail without this."
+            )
 
         # Exit handler
         atexit.register(self._on_exit)
