@@ -208,7 +208,10 @@ class Nxbt():
         self.resource_manager.shutdown()
 
         # Re-enable the BlueZ plugins, if we have permission
-        toggle_clean_bluez(False)
+        try:
+            toggle_clean_bluez(False)
+        except (PermissionError, FileNotFoundError):
+            pass  # Ignore if we don't have permission or file doesn't exist
 
     def _command_manager(self, task_queue, state):
         """Used as the main multiprocessing Process that is launched
@@ -227,7 +230,7 @@ class Nxbt():
         cm = _ControllerManager(state, self._bluetooth_lock)
         # Ensure a SystemExit exception is raised on SIGTERM
         # so that we can gracefully shutdown.
-        signal.signal(signal.SIGTERM, lambda sigterm_handler: sys.exit(0))
+        signal.signal(signal.SIGTERM, lambda sig, frame: sys.exit(0))
 
         try:
             while True:
