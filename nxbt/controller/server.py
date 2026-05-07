@@ -518,4 +518,4 @@ class ControllerServer():
         return itr, ctrl
 
     def _on_exit(self):
-        self.bt.reset_address()
+        pass  # BlueZ doesn't have reset_address() method
