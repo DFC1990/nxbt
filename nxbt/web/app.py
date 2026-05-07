@@ -57,7 +57,7 @@ sio = SocketIO(app, cookie=False)
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["10000 per day", "500 per hour"],  # Status polling needs higher limits
     storage_uri="memory://"  # In-memory storage für Pi
 )
 
@@ -1036,11 +1036,13 @@ def stop_macro_route():
 
 
 @app.route('/api/macros/status', methods=['GET'])
+@limiter.limit("3000 per hour")  # High limit for 2s polling from mobile UI
 def macro_status():
     return jsonify(_macro_status_snapshot())
 
 
 @app.route('/api/macros/logs', methods=['GET'])
+@limiter.limit("3000 per hour")  # High limit for polling
 def macro_logs():
     return jsonify({'logs': _macro_logs_snapshot()})
 
@@ -1283,12 +1285,14 @@ def mobile():
 
 
 @app.route('/api/wifi/status', methods=['GET'])
+@limiter.limit("3000 per hour")  # High limit for 2s polling
 def wifi_status():
     """Get current WiFi connection status."""
     return jsonify(nxbt_wifi.get_wifi_status())
 
 
 @app.route('/api/wifi/networks', methods=['GET'])
+@limiter.limit("30 per hour")  # Scans are expensive; lower limit
 def wifi_networks():
     """Scan and return available WiFi networks.
 
