@@ -144,4 +144,4 @@ messages.txt
 Vagrantfile
 .vagrant
 cert.pem
-key.pem
+key.pem.DS_Store
