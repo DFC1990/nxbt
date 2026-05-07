@@ -13,7 +13,8 @@ from socket import gethostname
 
 from .cert import generate_cert
 from ..nxbt import Nxbt, PRO_CONTROLLER
-from flask import Flask, jsonify, render_template, request
+from .. import wifi as nxbt_wifi
+from flask import Flask, jsonify, render_template, request, redirect
 from flask_socketio import SocketIO, emit
 import eventlet
 
@@ -1256,6 +1257,97 @@ def system_info():
     return jsonify(result)
 
 
+@app.route('/mobile')
+def mobile():
+    """Mobile-friendly interface for macro control."""
+    return render_template('mobile.html')
+
+
+@app.route('/api/wifi/status', methods=['GET'])
+def wifi_status():
+    """Get current WiFi connection status."""
+    return jsonify(nxbt_wifi.get_wifi_status())
+
+
+@app.route('/api/wifi/networks', methods=['GET'])
+def wifi_networks():
+    """Scan and return available WiFi networks.
+
+    This is slow (~5-8 seconds) because it triggers an actual scan.
+    Mobile UI should show a spinner and poll this endpoint until scanning is done.
+    """
+    # Run scan in background thread to avoid blocking Flask greenlet
+    def _scan_in_thread():
+        networks = nxbt_wifi.scan_networks(timeout=8)
+        return networks
+
+    try:
+        networks = eventlet.tpool.execute(_scan_in_thread)
+        return jsonify({"networks": networks})
+    except Exception as e:
+        log.warning(f"WiFi scan failed: {e}")
+        return jsonify({"networks": [], "error": str(e)}), 500
+
+
+@app.route('/api/wifi/connect', methods=['POST'])
+def wifi_connect():
+    """Connect to a WiFi network.
+
+    POST body: {"ssid": "NetworkName", "password": "password"}
+    """
+    payload = request.get_json(silent=True) or {}
+    ssid = payload.get('ssid', '').strip()
+    password = payload.get('password', '')
+
+    if not ssid:
+        return jsonify({"ok": False, "error": "SSID erforderlich"}), 400
+
+    # Run connection in thread to avoid blocking
+    def _connect_in_thread():
+        return nxbt_wifi.connect_network(ssid, password, timeout=30)
+
+    try:
+        result = eventlet.tpool.execute(_connect_in_thread)
+        status_code = 200 if result.get('ok') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        log.warning(f"WiFi connect failed: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/wifi/hotspot/status', methods=['GET'])
+def hotspot_status():
+    """Get current hotspot status."""
+    return jsonify(nxbt_wifi.ap_status())
+
+
+@app.route('/api/wifi/hotspot/toggle', methods=['POST'])
+def hotspot_toggle():
+    """Toggle hotspot on/off."""
+    status = nxbt_wifi.ap_status()
+
+    if status.get('active'):
+        result = nxbt_wifi.stop_ap()
+    else:
+        result = nxbt_wifi.start_ap()
+
+    status_code = 200 if result.get('ok') else 500
+    return jsonify(result), status_code
+
+
+# Captive portal redirects (for iOS/Android WiFi detection)
+@app.route('/generate_204')
+def captive_portal_android():
+    """Android captive portal detection endpoint."""
+    return '', 204
+
+
+@app.route('/hotspot-detect.html')
+def captive_portal_apple():
+    """Apple (iOS/macOS) captive portal detection endpoint."""
+    return redirect('/mobile')
+
+
 def start_web_app(ip='0.0.0.0', port=8000, usessl=False, cert_path=None):
     if usessl:
         if cert_path is None:
@@ -1299,9 +1391,25 @@ def start_web_app(ip='0.0.0.0', port=8000, usessl=False, cert_path=None):
             with open(key_path, "wb") as file_handle:
                 file_handle.write(key)
 
+        # Start AP auto-detection in background thread
+        def _ap_autostart():
+            from .. import wifi as _w
+            _w.maybe_start_ap()
+            _w.start_background_monitor()
+
+        Thread(target=_ap_autostart, daemon=True).start()
+
         eventlet.wsgi.server(eventlet.wrap_ssl(eventlet.listen((ip, port)),
             certfile=cert_path, keyfile=key_path), app)
     else:
+        # Start AP auto-detection in background thread
+        def _ap_autostart():
+            from .. import wifi as _w
+            _w.maybe_start_ap()
+            _w.start_background_monitor()
+
+        Thread(target=_ap_autostart, daemon=True).start()
+
         eventlet.wsgi.server(eventlet.listen((ip, port)), app)
 
 

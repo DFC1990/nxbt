@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>NXBT Mobile</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header id="m-header">
+    <div class="header-content">
+      <h1>NXBT</h1>
+      <div id="m-status-indicator" class="status-dot idle" title="Bereit"></div>
+    </div>
+  </header>
+
+  <!-- Running Banner -->
+  <div id="m-running-banner" class="banner running hidden">
+    <div class="banner-content">
+      <div>
+        <span class="label">Läuft:</span>
+        <span id="m-running-name" class="macro-name">---</span>
+      </div>
+      <button id="m-stop-btn" class="btn btn-danger">Stop</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="container">
+
+    <!-- Macros Section -->
+    <section class="section">
+      <h2>Makros</h2>
+      <div id="m-macro-list" class="macro-list">
+        <!-- Populated by mobile.js -->
+      </div>
+      <p id="m-macro-empty" class="empty-message">Keine Makros gefunden.</p>
+    </section>
+
+    <!-- WiFi Status Section -->
+    <section class="section">
+      <h2>Netzwerk</h2>
+      <div class="wifi-status">
+        <div class="status-row">
+          <span class="label">WLAN:</span>
+          <span id="m-wifi-ssid" class="value">---</span>
+        </div>
+        <div class="status-row">
+          <span class="label">IP:</span>
+          <span id="m-wifi-ip" class="value muted">---</span>
+        </div>
+        <div class="status-row">
+          <span class="label">Signal:</span>
+          <span id="m-wifi-signal" class="value muted">---</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hotspot Control -->
+    <section class="section">
+      <h2>Hotspot</h2>
+      <p class="hint" id="m-hotspot-hint">Wenn keine WLAN-Verbindung verfügbar ist, startet der Hotspot automatisch.</p>
+      <div class="hotspot-row">
+        <span class="label">Status:</span>
+        <span id="m-hotspot-status" class="value">--</span>
+      </div>
+      <button id="m-hotspot-toggle-btn" class="btn btn-secondary btn-block">Hotspot einschalten</button>
+    </section>
+
+    <!-- WiFi Connect Section -->
+    <section class="section">
+      <h2>Zu WLAN verbinden</h2>
+      <button id="m-scan-btn" class="btn btn-primary btn-block">Netzwerke suchen</button>
+
+      <!-- Scan loading state -->
+      <div id="m-scan-loading" class="scan-loading hidden">
+        <p>Suche läuft...</p>
+      </div>
+
+      <!-- Network list -->
+      <div id="m-network-list" class="network-list hidden">
+        <!-- Populated by mobile.js: list of networks -->
+      </div>
+
+      <!-- Connect form -->
+      <form id="m-connect-form" class="hidden">
+        <div class="form-group">
+          <label for="m-ssid-input">SSID/Netzwerk</label>
+          <input id="m-ssid-input" type="text" placeholder="z.B. MyNetwork" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="m-pw-input">Passwort</label>
+          <input id="m-pw-input" type="password" placeholder="Passwort" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Verbinden</button>
+        <div id="m-connect-error" class="error-message hidden"></div>
+      </form>
+    </section>
+
+    <!-- Footer hint -->
+    <footer class="footer">
+      <p class="muted small">Hinweis: Der Pi hat nur ein WLAN-Radio. Beim Verbinden zu einem WLAN wird der Hotspot automatisch ausgeschaltet.</p>
+    </footer>
+
+  </main>
+
+  <script src="js/mobile.js"></script>
+</body>
+</html>

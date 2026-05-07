@@ -14,10 +14,11 @@
 Description=NXBT Nintendo Switch Bluetooth Controller Bridge
 Documentation=https://github.com/Brikwerk/nxbt
 
-# Erst starten, wenn Bluetooth und Netzwerk wirklich bereit sind.
+# Erst starten, wenn Bluetooth, Netzwerk und NetworkManager bereit sind.
 # Verhindert Race-Conditions beim Boot auf dem Pi 3.
-After=bluetooth.service network-online.target
-Wants=bluetooth.service network-online.target
+# NetworkManager wird benoetigt fuer WiFi AP-Verwaltung (nmcli).
+After=bluetooth.service network-online.target NetworkManager.service
+Wants=bluetooth.service network-online.target NetworkManager.service
 
 # Falls bluetooth.service abstuerzt, auch NXBT beenden.
 BindsTo=bluetooth.service
@@ -29,6 +30,11 @@ Type=simple
 # Muss in der Gruppe 'bluetooth' sein: sudo usermod -aG bluetooth dfernandez
 User=dfernandez
 Group=bluetooth
+
+# Capabilities fuer WiFi AP-Verwaltung via nmcli.
+# CAP_NET_ADMIN: nachweis von AP/Netzwerk-Verbindungen
+# CAP_NET_RAW: Datenverkehr analysieren (WiFi-Scan, Signal)
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
 
 # Pfad zur aktivierten virtualenv-Installation.
 ExecStart=/home/dfernandez/nxbt-env/bin/nxbt webapp --ip 0.0.0.0 --port 8000
@@ -57,9 +63,10 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=nxbt
 
-# Harte Ressourcengrenzen fuer den Pi 3 (512 MB RAM).
+# Harte Ressourcengrenzen fuer den Pi 3/B+ (512 MB RAM).
 # Verhindert, dass NXBT das System bei Speicherleck haengen laesst.
-MemoryMax=128M
+# 160M (statt 128M) fuer WiFi-Operationen eingeplant.
+MemoryMax=160M
 MemorySwapMax=0
 
 # Sicherheits-Haertung (optional, kann Bluetooth-Zugriff beeinflussen –
