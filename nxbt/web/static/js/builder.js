@@ -14,6 +14,27 @@ var BUILDER_DISPLAY = {
     'L_STICK_PRESS': 'LS', 'R_STICK_PRESS': 'RS',
 };
 
+var BUILDER_BUTTONS = [
+    'A', 'B', 'X', 'Y',
+    'DPAD_UP', 'DPAD_DOWN', 'DPAD_LEFT', 'DPAD_RIGHT',
+    'L', 'ZL', 'R', 'ZR',
+    'PLUS', 'MINUS', 'HOME', 'CAPTURE',
+    'L_STICK_PRESS', 'R_STICK_PRESS',
+];
+
+function _builderDuration(value) {
+    let dur = parseFloat(value);
+    if (isNaN(dur)) { dur = 0.5; }
+    dur = Math.max(0.1, Math.min(60, dur));
+    return Math.round(dur * 10) / 10;
+}
+
+function _builderLoopCount(value) {
+    let count = parseInt(value, 10);
+    if (isNaN(count)) { count = 2; }
+    return Math.max(2, Math.min(9999, count));
+}
+
 function builderToggle(btn) {
     if (_builderSelected.has(btn)) {
         _builderSelected.delete(btn);
@@ -31,8 +52,7 @@ function builderAddStep() {
         setBannerStatus('Bitte zuerst mindestens einen Button auswaehlen', 'error');
         return;
     }
-    let dur = Math.max(0.1, parseFloat(document.getElementById('builder-duration').value) || 0.5);
-    dur = Math.round(dur * 10) / 10;
+    let dur = _builderDuration(document.getElementById('builder-duration').value);
     let comment = (document.getElementById('builder-comment').value || '').trim();
     _builderSteps.push({
         id: _builderNextId++,
@@ -50,8 +70,7 @@ function builderAddStep() {
 }
 
 function builderAddWait() {
-    let dur = Math.max(0.1, parseFloat(document.getElementById('builder-duration').value) || 1.0);
-    dur = Math.round(dur * 10) / 10;
+    let dur = _builderDuration(document.getElementById('builder-duration').value || 1.0);
     let comment = (document.getElementById('builder-comment').value || '').trim();
     _builderSteps.push({
         id: _builderNextId++,
@@ -64,7 +83,7 @@ function builderAddWait() {
 }
 
 function builderAddLoopStart() {
-    let count = Math.max(2, parseInt(document.getElementById('builder-loop-count').value) || 3);
+    let count = _builderLoopCount(document.getElementById('builder-loop-count').value || 3);
     let comment = (document.getElementById('builder-comment').value || '').trim();
     _builderSteps.push({
         id: _builderNextId++,
@@ -101,6 +120,59 @@ function builderMove(idx, dir) {
     let tmp = _builderSteps[idx];
     _builderSteps[idx] = _builderSteps[nIdx];
     _builderSteps[nIdx] = tmp;
+    _builderRender();
+}
+
+function builderEditLabel(idx, value) {
+    if (!_builderSteps[idx]) { return; }
+    _builderSteps[idx].comment = value.trim();
+    _builderRender();
+}
+
+function builderEditDuration(idx, value) {
+    let step = _builderSteps[idx];
+    if (!step || (step.type !== 'button' && step.type !== 'wait')) { return; }
+    step.duration = _builderDuration(value);
+    _builderRender();
+}
+
+function builderNudgeDuration(idx, delta) {
+    let step = _builderSteps[idx];
+    if (!step || (step.type !== 'button' && step.type !== 'wait')) { return; }
+    step.duration = _builderDuration((step.duration || 0.5) + delta);
+    _builderRender();
+}
+
+function builderEditLoopCount(idx, value) {
+    let step = _builderSteps[idx];
+    if (!step || step.type !== 'loop_start') { return; }
+    step.count = _builderLoopCount(value);
+    _builderRender();
+}
+
+function builderNudgeLoopCount(idx, delta) {
+    let step = _builderSteps[idx];
+    if (!step || step.type !== 'loop_start') { return; }
+    step.count = _builderLoopCount((step.count || 2) + delta);
+    _builderRender();
+}
+
+function builderToggleStepButton(idx, button) {
+    let step = _builderSteps[idx];
+    if (!step || step.type !== 'button') { return; }
+    if (!Array.isArray(step.buttons)) {
+        step.buttons = [];
+    }
+    let pos = step.buttons.indexOf(button);
+    if (pos >= 0) {
+        if (step.buttons.length === 1) {
+            setBannerStatus('Ein Knopfdruck braucht mindestens eine Taste', 'error');
+            return;
+        }
+        step.buttons.splice(pos, 1);
+    } else {
+        step.buttons.push(button);
+    }
     _builderRender();
 }
 
@@ -262,6 +334,50 @@ function _builderEsc(s) {
         .replace(/"/g, '&quot;');
 }
 
+function _builderAttr(s) {
+    return _builderEsc(s).replace(/'/g, '&#39;');
+}
+
+function _builderEditableLabel(step, idx) {
+    return '<input class="builder-step-label-input" type="text" value="' + _builderAttr(step.comment || '') + '"'
+        + ' placeholder="Label"'
+        + ' onfocus="disableKeyHandlers()" onblur="enableKeyHandlers(); builderEditLabel(' + idx + ', this.value)"'
+        + ' onkeydown="if(event.key===\'Enter\'){this.blur();}">';
+}
+
+function _builderDurationEditor(step, idx) {
+    return '<div class="builder-inline-editor">'
+        + '<button class="bsb" onclick="builderNudgeDuration(' + idx + ',-0.1)" title="Dauer verringern">&minus;</button>'
+        + '<input class="builder-step-number mono" type="number" min="0.1" max="60" step="0.1" value="' + step.duration.toFixed(1) + '"'
+        + ' onfocus="disableKeyHandlers()" onblur="enableKeyHandlers(); builderEditDuration(' + idx + ', this.value)"'
+        + ' onkeydown="if(event.key===\'Enter\'){this.blur();}">'
+        + '<button class="bsb" onclick="builderNudgeDuration(' + idx + ',0.1)" title="Dauer erhoehen">+</button>'
+        + '</div>';
+}
+
+function _builderLoopEditor(step, idx) {
+    return '<div class="builder-inline-editor">'
+        + '<button class="bsb" onclick="builderNudgeLoopCount(' + idx + ',-1)" title="Loop verringern">&minus;</button>'
+        + '<input class="builder-step-number mono" type="number" min="2" max="9999" step="1" value="' + step.count + '"'
+        + ' onfocus="disableKeyHandlers()" onblur="enableKeyHandlers(); builderEditLoopCount(' + idx + ', this.value)"'
+        + ' onkeydown="if(event.key===\'Enter\'){this.blur();}">'
+        + '<button class="bsb" onclick="builderNudgeLoopCount(' + idx + ',1)" title="Loop erhoehen">+</button>'
+        + '</div>';
+}
+
+function _builderButtonEditor(step, idx) {
+    return '<div class="builder-step-button-grid">'
+        + BUILDER_BUTTONS.map(function(button) {
+            let active = step.buttons.indexOf(button) >= 0;
+            return '<button class="builder-step-chip' + (active ? ' active' : '') + '"'
+                + ' onclick="builderToggleStepButton(' + idx + ',\'' + button + '\')"'
+                + ' title="' + _builderAttr(button) + '">'
+                + _builderEsc(BUILDER_DISPLAY[button] || button)
+                + '</button>';
+        }).join('')
+        + '</div>';
+}
+
 function _builderRender() {
     let container = document.getElementById('builder-steps-list');
     let countEl   = document.getElementById('builder-step-count');
@@ -286,24 +402,28 @@ function _builderRender() {
         }
 
         let typeClass = 'builder-step-' + step.type;
-        let labelHtml = step.comment
-            ? '<div class="builder-step-label">' + _builderEsc(step.comment) + '</div>'
-            : '';
+        let labelHtml = step.type === 'loop_end'
+            ? ''
+            : '<div class="builder-step-label-row">' + _builderEditableLabel(step, i) + '</div>';
 
         let contentHtml = '';
         if (step.type === 'button') {
             let badges = step.buttons.map(function(b) {
                 return '<span class="builder-badge">' + _builderEsc(BUILDER_DISPLAY[b] || b) + '</span>';
             }).join(' ');
-            contentHtml = badges + ' <span class="builder-step-dur">' + step.duration.toFixed(1) + 's</span>';
+            contentHtml = '<div class="builder-step-summary">' + badges + ' <span class="builder-step-dur">' + step.duration.toFixed(1) + 's</span></div>'
+                + _builderDurationEditor(step, i)
+                + _builderButtonEditor(step, i);
         } else if (step.type === 'wait') {
-            contentHtml = '<span class="builder-icon">⏱</span>'
+            contentHtml = '<div class="builder-step-summary"><span class="builder-icon">⏱</span>'
                 + '<span class="builder-step-dur">' + step.duration.toFixed(1) + 's</span>'
-                + '<span class="builder-muted"> warten</span>';
+                + '<span class="builder-muted"> warten</span></div>'
+                + _builderDurationEditor(step, i);
         } else if (step.type === 'loop_start') {
-            contentHtml = '<span class="builder-icon">↺</span>'
+            contentHtml = '<div class="builder-step-summary"><span class="builder-icon">↺</span>'
                 + '<strong>' + step.count + '&times;</strong>'
-                + '<span class="builder-muted"> wiederholen</span>';
+                + '<span class="builder-muted"> wiederholen</span></div>'
+                + _builderLoopEditor(step, i);
         } else if (step.type === 'loop_end') {
             contentHtml = '<span class="builder-muted">&#x21A9; Loop Ende</span>';
         }
