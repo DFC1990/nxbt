@@ -376,6 +376,22 @@ def _resolve_controller_index(payload):
     raise ValueError("Kein verbundener Controller verfugbar. Bitte zuerst einen Controller erstellen.")
 
 
+def _controllers_snapshot():
+    try:
+        state_proxy = nxbt.state.copy()
+    except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
+        log.error(f"Manager state unavailable in _controllers_snapshot: {e}")
+        return {}
+
+    controllers = {}
+    for controller in state_proxy.keys():
+        try:
+            controllers[int(controller)] = state_proxy[controller].copy()
+        except Exception:
+            continue
+    return controllers
+
+
 def _duration_from_token(token, line_number):
     match = MACRO_DURATION_RE.match(token.strip())
     if not match:
@@ -1066,6 +1082,45 @@ def macro_logs():
     return jsonify({'logs': _macro_logs_snapshot()})
 
 
+@app.route('/api/controllers', methods=['GET'])
+def list_controllers():
+    return jsonify({'controllers': _controllers_snapshot()})
+
+
+@app.route('/api/controllers', methods=['POST'])
+@limiter.limit("10 per minute")
+def create_controller_route():
+    try:
+        reconnect_addresses = nxbt.get_switch_addresses()
+        index = nxbt.create_controller(PRO_CONTROLLER, reconnect_address=reconnect_addresses)
+        return jsonify({
+            'controller_index': index,
+            'controllers': _controllers_snapshot(),
+        })
+    except Exception as err:
+        return jsonify({'error': str(err)}), 500
+
+
+@app.route('/api/controllers/<int:index>', methods=['DELETE'])
+def delete_controller_route(index):
+    try:
+        nxbt.remove_controller(index)
+        return jsonify({'controller_index': index, 'removed': True})
+    except Exception as err:
+        return jsonify({'error': str(err)}), 400
+
+
+@app.route('/api/controllers/<int:index>/adopt', methods=['POST'])
+def adopt_controller_route(index):
+    controllers = _controllers_snapshot()
+    if index not in controllers:
+        return jsonify({'error': 'Controller-Session nicht gefunden'}), 404
+    return jsonify({
+        'controller_index': index,
+        'controller': controllers[index],
+    })
+
+
 @sio.on('connect')
 def on_connect():
     with user_info_lock:
@@ -1077,10 +1132,7 @@ def on_connect():
 @sio.on('state')
 def on_state():
     try:
-        state_proxy = nxbt.state.copy()
-        state = {}
-        for controller in state_proxy.keys():
-            state[controller] = state_proxy[controller].copy()
+        state = _controllers_snapshot()
         emit('state_update', state)
         emit('state', state)
     except (FileNotFoundError, ConnectionRefusedError, BrokenPipeError) as e:
@@ -1093,24 +1145,30 @@ def on_state():
 def on_disconnect():
     print("Disconnected")
     with user_info_lock:
-        try:
-            index = USER_INFO[request.sid]["controller_index"]
-        except KeyError:
-            return
-    # Don't tear down the controller while a macro is running — a transient
-    # Socket.IO reconnect (e.g. polling→WebSocket upgrade) must not kill it.
-    with MACRO_STATUS_LOCK:
-        macro_running = MACRO_STATUS.get("running", False)
-    if not macro_running:
-        try:
-            nxbt.remove_controller(index)
-        except Exception as e:
-            log.warning("remove_controller beim Disconnect fehlgeschlagen: %s", e)
+        USER_INFO.pop(request.sid, None)
 
 
 @sio.on('shutdown')
 def on_shutdown(index):
     nxbt.remove_controller(index)
+
+
+@sio.on('web_adopt_controller')
+def on_adopt_controller(index):
+    controllers = _controllers_snapshot()
+    try:
+        index = int(index)
+    except (TypeError, ValueError):
+        emit('error', 'Ungueltige Controller-Session')
+        return
+
+    if index not in controllers:
+        emit('error', 'Controller-Session nicht gefunden')
+        return
+
+    with user_info_lock:
+        USER_INFO.setdefault(request.sid, {})["controller_index"] = index
+    emit('create_pro_controller', index)
 
 
 @sio.on('web_create_pro_controller')

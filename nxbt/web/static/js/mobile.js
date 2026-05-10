@@ -7,6 +7,7 @@ const API = {
   macroStop: '/api/macros/stop',
   macroStatus: '/api/macros/status',
   macroLogs: '/api/macros/logs',
+  controllers: '/api/controllers',
   wifiStatus: '/api/wifi/status',
   wifiNetworks: '/api/wifi/networks',
   wifiConnect: '/api/wifi/connect',
@@ -110,6 +111,7 @@ function cacheElements() {
     disconnectControllerBtn: document.getElementById('m-disconnect-controller-btn'),
     connectControllerArea: document.getElementById('m-connect-controller-area'),
     disconnectControllerArea: document.getElementById('m-disconnect-controller-area'),
+    controllerSessions: document.getElementById('m-controller-sessions'),
     stickLeft: document.getElementById('m-stick-left'),
     stickRight: document.getElementById('m-stick-right'),
     stickLeftX: document.getElementById('m-stick-left-x'),
@@ -849,9 +851,7 @@ function startPolling() {
     updateMacroStatus();
     updateWiFiStatus();
     updateHotspotStatus();
-    if (controllerIndex !== null) {
-      socket.emit('state');
-    }
+    socket.emit('state');
   }, 2000);
 }
 
@@ -864,11 +864,11 @@ function initSocket() {
 
   socket.on('connect', function() {
     updateControllerUI('disconnected');
+    socket.emit('state');
   });
 
   socket.on('disconnect', function() {
     updateControllerUI('disconnected');
-    controllerIndex = null;
     currentInput = createEmptyPacket();
   });
 
@@ -878,9 +878,14 @@ function initSocket() {
   });
 
   socket.on('state_update', function(stateData) {
+    renderControllerSessions(stateData || {});
     if (controllerIndex === null) return;
     const cs = stateData[controllerIndex];
-    if (!cs) return;
+    if (!cs) {
+      controllerIndex = null;
+      updateControllerUI('disconnected');
+      return;
+    }
     updateControllerUI(cs.state);
   });
 
@@ -905,7 +910,69 @@ function initSocket() {
       controllerIndex = null;
     }
     updateControllerUI('disconnected');
+    socket.emit('state');
   });
+}
+
+function renderControllerSessions(stateData) {
+  if (!refs.controllerSessions) return;
+  const entries = Object.keys(stateData);
+  refs.controllerSessions.innerHTML = '';
+
+  if (entries.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-message';
+    empty.textContent = 'Keine laufenden Sessions gefunden.';
+    refs.controllerSessions.appendChild(empty);
+    return;
+  }
+
+  entries.forEach(key => {
+    const index = Number(key);
+    const session = stateData[key] || {};
+    const card = document.createElement('div');
+    card.className = 'macro-card';
+
+    const title = document.createElement('span');
+    title.className = 'macro-card-name';
+    title.textContent = `Session #${index} · ${session.state || 'unknown'}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'macro-card-actions';
+
+    const resume = document.createElement('button');
+    resume.className = 'btn btn-primary btn-sm';
+    resume.textContent = index === controllerIndex ? '✓' : '▶';
+    resume.title = 'Session fortsetzen';
+    resume.addEventListener('click', () => adoptControllerSession(index));
+
+    const end = document.createElement('button');
+    end.className = 'btn btn-danger btn-sm';
+    end.textContent = '×';
+    end.title = 'Session beenden';
+    end.addEventListener('click', () => {
+      socket.emit('shutdown', index);
+      if (controllerIndex === index) {
+        controllerIndex = null;
+        updateControllerUI('disconnected');
+      }
+      setTimeout(() => socket.emit('state'), 250);
+    });
+
+    actions.appendChild(resume);
+    actions.appendChild(end);
+    card.appendChild(title);
+    card.appendChild(actions);
+    refs.controllerSessions.appendChild(card);
+  });
+}
+
+function adoptControllerSession(index) {
+  controllerIndex = index;
+  socket.emit('web_adopt_controller', index);
+  updateControllerUI('connecting');
+  switchTab(1);
+  socket.emit('state');
 }
 
 function updateControllerUI(status) {

@@ -252,6 +252,9 @@ function displayOtherSessions() {
         endButton.innerHTML = "END";
         endButton.onclick = function() {
             window.NXBTApp.socket.emit('shutdown', Number(sessionIndex));
+            if (Number(sessionIndex) === window.NXBTApp.state.nxbtControllerIndex) {
+                window.NXBTApp.state.nxbtControllerIndex = false;
+            }
         };
 
         actions.appendChild(resumeButton);
@@ -270,6 +273,7 @@ function adoptControllerSession(index) {
     }
 
     window.NXBTApp.state.nxbtControllerIndex = index;
+    window.NXBTApp.socket.emit('web_adopt_controller', index);
     window.NXBTApp.dom.controllerSelection.classList.add('hidden');
     window.NXBTApp.dom.loader.classList.add('hidden');
     window.NXBTApp.dom.controllerConfig.classList.remove('hidden');
