@@ -18,6 +18,10 @@ from .utils import format_msg_controller, format_msg_switch
 
 class ControllerServer():
 
+    RECONNECT_ATTEMPTS = 8
+    RECONNECT_DELAYS = (0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0)
+    KEEPALIVE_TICKS = 66
+
     def __init__(self, controller_type, adapter_path="/org/bluez/hci0",
                  state=None, task_queue=None, lock=None, colour_body=None,
                  colour_buttons=None):
@@ -67,6 +71,14 @@ class ControllerServer():
         # Initial reconnection overload protection
         self.tick = 1
         self.cached_msg = ''
+
+    @staticmethod
+    def _close_socket(sock):
+        try:
+            if sock:
+                sock.close()
+        except Exception:
+            pass
 
     def run(self, reconnect_address=None):
         """Runs the mainloop of the controller server.
@@ -132,6 +144,9 @@ class ControllerServer():
                     self.logger.debug(format_msg_switch(reply))
             except BlockingIOError:
                 reply = None
+            except OSError as e:
+                itr, ctrl = self.save_connection(e, itr=itr, ctrl=ctrl)
+                continue
 
             # Getting any inputs from the task queue
             if self.task_queue:
@@ -169,7 +184,7 @@ class ControllerServer():
                     self.cached_msg = msg[3:]
                 # Send a blank packet every so often to keep the Switch
                 # from disconnecting from the controller.
-                elif self.tick >= 132:
+                elif self.tick >= self.KEEPALIVE_TICKS:
                     itr.sendall(msg)
                     self.tick = 0
             except BlockingIOError:
@@ -198,11 +213,19 @@ class ControllerServer():
                     f"Tick: {self.tick}, Mean Time: {str(1/mean_time)}")
 
 
-    def save_connection(self, error, state=None):
+    def save_connection(self, error, state=None, itr=None, ctrl=None):
 
-        while self.reconnect_counter < 2:
+        self.logger.warning("Bluetooth connection interrupted, reconnecting: %s", error)
+        self.state["state"] = "reconnecting"
+        self._close_socket(itr)
+        self._close_socket(ctrl)
+
+        while self.reconnect_counter < self.RECONNECT_ATTEMPTS:
             try:
-                self.logger.debug("Attempting to reconnect")
+                self.logger.debug(
+                    "Attempting to reconnect (%s/%s)",
+                    self.reconnect_counter + 1,
+                    self.RECONNECT_ATTEMPTS)
                 # Reinitialize the protocol
                 self.protocol = ControllerProtocol(
                     self.controller_type,
@@ -253,6 +276,10 @@ class ControllerServer():
                             time.sleep(1/15)
 
                     self.state["state"] = "connected"
+                    self.reconnect_counter = 0
+                    self.tick = 1
+                    self.cached_msg = ''
+                    self.state["last_connection"] = self.switch_address
                     return itr, ctrl
                 finally:
                     if self.lock:
@@ -260,7 +287,8 @@ class ControllerServer():
             except OSError as e:
                 self.reconnect_counter += 1
                 self.logger.debug(f"Reconnect attempt {self.reconnect_counter} failed: {e}")
-                time.sleep(0.5)
+                delay_idx = min(self.reconnect_counter - 1, len(self.RECONNECT_DELAYS) - 1)
+                time.sleep(self.RECONNECT_DELAYS[delay_idx])
 
         # If we can't reconnect, transition to attempting
         # to connect to any Switch.
@@ -298,7 +326,8 @@ class ControllerServer():
 
         self.state["state"] = "connected"
 
-        self.switch_address = itr.getsockname()[0]
+        self.switch_address = itr.getpeername()[0]
+        self.state["last_connection"] = self.switch_address
 
         return itr, ctrl
 

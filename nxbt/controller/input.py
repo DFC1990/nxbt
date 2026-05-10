@@ -1,5 +1,6 @@
 from time import perf_counter
 from json import dumps
+from copy import deepcopy
 
 
 DIRECT_INPUT_IDLE_PACKET = {
@@ -153,7 +154,7 @@ class InputParser():
             return
 
         # Merge with idle packet template to ensure all required keys are present
-        normalized_input = {**DIRECT_INPUT_IDLE_PACKET}
+        normalized_input = deepcopy(DIRECT_INPUT_IDLE_PACKET)
         if isinstance(controller_input, dict):
             # Update with provided values, handling nested dicts (sticks)
             for key, value in controller_input.items():
@@ -165,7 +166,7 @@ class InputParser():
         self.controller_input = normalized_input
     
     def commands_queued(self):
-        check = dumps(self.controller_input) != dumps(DIRECT_INPUT_IDLE_PACKET)
+        check = self.controller_input is not None
         check = check or self.macro_buffer
         check = check or self.current_macro
         check = check or self.current_macro_commands
@@ -183,15 +184,17 @@ class InputParser():
                 return False
             else:
                 return True
-        elif dumps(self.controller_input) != dumps(DIRECT_INPUT_IDLE_PACKET):
+        elif (self.controller_input is not None and
+              dumps(self.controller_input) != dumps(DIRECT_INPUT_IDLE_PACKET)):
             return True
         else:
             return False
 
     def set_protocol_input(self, state=None):
 
-        # Act on direct input if we're not getting idle packets
-        if dumps(self.controller_input) != dumps(DIRECT_INPUT_IDLE_PACKET):
+        # Direct input includes idle packets; idle packets are required to
+        # release buttons/sticks after macros or browser input.
+        if self.controller_input is not None:
             self.parse_controller_input(self.controller_input)
             self.controller_input = None
 
