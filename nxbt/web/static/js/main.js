@@ -64,6 +64,8 @@ window.NXBTApp = {
         loaderFrame: 1,
         highlightedBlock: false,
         checkForLoadInterval: false,
+        eventLoopRunning: false,
+        statusIndicatorInterval: false,
         macroFlash: {}
     },
     macroStatus: {

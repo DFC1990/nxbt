@@ -511,6 +511,20 @@ code {
     background: rgba(255, 255, 255, 0.04);
 }
 
+.controller-session h1 span {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.controller-session-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
 .log-entries {
     display: grid;
     gap: 0.7rem;

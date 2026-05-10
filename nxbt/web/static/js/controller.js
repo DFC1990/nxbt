@@ -236,16 +236,53 @@ function displayOtherSessions() {
         let session = document.createElement('div');
         session.classList.add('controller-session');
         let title = document.createElement('h1');
-        title.innerHTML = "Session #" + sessionIndex;
-        let button = document.createElement('button');
-        button.innerHTML = "END";
-        button.onclick = function() {
+        let sessionState = state[sessionIndex] && state[sessionIndex].state ? state[sessionIndex].state : 'unknown';
+        title.innerHTML = "Session #" + sessionIndex + " <span>" + sessionState + "</span>";
+
+        let actions = document.createElement('div');
+        actions.classList.add('controller-session-actions');
+
+        let resumeButton = document.createElement('button');
+        resumeButton.innerHTML = "FORTSETZEN";
+        resumeButton.onclick = function() {
+            adoptControllerSession(Number(sessionIndex));
+        };
+
+        let endButton = document.createElement('button');
+        endButton.innerHTML = "END";
+        endButton.onclick = function() {
             window.NXBTApp.socket.emit('shutdown', Number(sessionIndex));
         };
+
+        actions.appendChild(resumeButton);
+        actions.appendChild(endButton);
         session.appendChild(title);
-        session.appendChild(button);
+        session.appendChild(actions);
         window.NXBTApp.dom.controllerSessionsContainer.appendChild(session);
     }
+}
+
+function adoptControllerSession(index) {
+    let state = window.NXBTApp.state.state || {};
+    if (!state[index]) {
+        displayError('Session #' + index + ' ist nicht mehr verfuegbar.');
+        return;
+    }
+
+    window.NXBTApp.state.nxbtControllerIndex = index;
+    window.NXBTApp.dom.controllerSelection.classList.add('hidden');
+    window.NXBTApp.dom.loader.classList.add('hidden');
+    window.NXBTApp.dom.controllerConfig.classList.remove('hidden');
+    window.NXBTApp.dom.statusIndicator.classList.remove('hidden');
+    window.NXBTApp.dom.controllerSessions.classList.add('hidden');
+
+    if (!window.NXBTApp.state.statusIndicatorInterval) {
+        window.NXBTApp.state.statusIndicatorInterval = setInterval(updateStatusIndicator, 1000);
+    }
+    startControllerEventLoop();
+    updateStatusIndicator();
+    refreshLiveStatusPanel();
+    appendLog('Session #' + index + ' uebernommen', 'success');
 }
 
 function updateLoader() {
@@ -346,8 +383,10 @@ function checkForLoad() {
                 window.NXBTApp.dom.loader.classList.add('hidden');
                 window.NXBTApp.dom.controllerConfig.classList.remove('hidden');
                 window.NXBTApp.dom.statusIndicator.classList.remove('hidden');
-                setInterval(updateStatusIndicator, 1000);
-                eventLoop();
+                if (!window.NXBTApp.state.statusIndicatorInterval) {
+                    window.NXBTApp.state.statusIndicatorInterval = setInterval(updateStatusIndicator, 1000);
+                }
+                startControllerEventLoop();
                 refreshLiveStatusPanel();
             }, 1000);
         } else if (controllerState === window.NXBTApp.enums.ControllerState.CRASHED) {
@@ -358,6 +397,14 @@ function checkForLoad() {
             displayError(errors);
         }
     }
+}
+
+function startControllerEventLoop() {
+    if (window.NXBTApp.state.eventLoopRunning) {
+        return;
+    }
+    window.NXBTApp.state.eventLoopRunning = true;
+    eventLoop();
 }
 
 function eventLoop() {
