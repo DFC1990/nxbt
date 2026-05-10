@@ -180,6 +180,18 @@ function cacheDom() {
     dom.recorderStart = document.getElementById("recorder-start");
     dom.recorderStop = document.getElementById("recorder-stop");
     dom.logEntries = document.getElementById("log-entries");
+    dom.networkMode = document.getElementById("network-mode");
+    dom.networkWifiSsid = document.getElementById("network-wifi-ssid");
+    dom.networkWifiIp = document.getElementById("network-wifi-ip");
+    dom.networkHotspotState = document.getElementById("network-hotspot-state");
+    dom.networkHotspotIp = document.getElementById("network-hotspot-ip");
+    dom.networkHotspotOnly = document.getElementById("network-hotspot-only");
+    dom.networkScan = document.getElementById("network-scan");
+    dom.networkMessage = document.getElementById("network-message");
+    dom.networkList = document.getElementById("network-list");
+    dom.networkConnectForm = document.getElementById("network-connect-form");
+    dom.networkSsidInput = document.getElementById("network-ssid-input");
+    dom.networkPasswordInput = document.getElementById("network-password-input");
 }
 
 function cacheDisplays() {
@@ -220,9 +232,11 @@ function initializeApp() {
     renderMacroStatus();
     refreshMacroList();
     pollMacroStatus();
+    refreshNetworkStatus();
     setInterval(updateLoader, 85);
     setInterval(displayOtherSessions, 2000);
     setInterval(pollMacroStatus, 1000);
+    setInterval(refreshNetworkStatus, 5000);
 
     window.NXBTApp.dom.macroList.addEventListener("change", function(evt) {
         if (evt.target.value) {
@@ -236,3 +250,133 @@ function initializeApp() {
 }
 
 window.onload = initializeApp;
+
+function refreshNetworkStatus() {
+    fetch("/api/wifi/status")
+        .then((response) => response.json())
+        .then((data) => {
+            const dom = window.NXBTApp.dom;
+            if (!dom.networkMode) return;
+            dom.networkMode.textContent = data.mode === "hotspot_only" ? "Hotspot-Betrieb" : "WLAN-Betrieb";
+            dom.networkWifiSsid.textContent = data.connected && data.ssid ? data.ssid : "Nicht verbunden";
+            dom.networkWifiIp.textContent = data.ip || "-";
+            dom.networkHotspotState.textContent = data.hotspot_active ? "Aktiv" : "Inaktiv";
+            dom.networkHotspotIp.textContent = data.hotspot_active
+                ? `${data.hotspot_ip || "192.168.4.1"}:8000`
+                : "192.168.4.1:8000";
+        })
+        .catch((error) => showNetworkMessage(`Netzwerkstatus fehlgeschlagen: ${error.message}`, "error"));
+}
+
+function showNetworkMessage(message, type) {
+    const element = window.NXBTApp.dom.networkMessage;
+    if (!element) return;
+    element.textContent = message;
+    element.className = `network-message ${type || "info"}`;
+    element.classList.toggle("hidden", !message);
+}
+
+function useHotspotOnlyDesktop() {
+    const dom = window.NXBTApp.dom;
+    dom.networkHotspotOnly.disabled = true;
+    showNetworkMessage("Hotspot-Betrieb wird aktiviert...", "info");
+    fetch("/api/wifi/hotspot-only", { method: "POST" })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.ok) {
+                showNetworkMessage("Hotspot ist aktiv. NXBT bleibt lokal unter 192.168.4.1:8000 erreichbar.", "success");
+            } else {
+                showNetworkMessage(data.error || "Hotspot konnte nicht aktiviert werden.", "error");
+            }
+            refreshNetworkStatus();
+        })
+        .catch((error) => showNetworkMessage(`Fehler: ${error.message}`, "error"))
+        .finally(() => {
+            dom.networkHotspotOnly.disabled = false;
+        });
+}
+
+function scanNetworksDesktop() {
+    const dom = window.NXBTApp.dom;
+    dom.networkScan.disabled = true;
+    dom.networkList.classList.remove("hidden");
+    dom.networkList.innerHTML = '<div class="network-list-empty">Suche laeuft...</div>';
+    fetch("/api/wifi/networks")
+        .then((response) => response.json())
+        .then((data) => renderNetworksDesktop(data.networks || []))
+        .catch((error) => {
+            dom.networkList.innerHTML = '<div class="network-list-empty">Scan fehlgeschlagen</div>';
+            showNetworkMessage(`Scan fehlgeschlagen: ${error.message}`, "error");
+        })
+        .finally(() => {
+            dom.networkScan.disabled = false;
+        });
+}
+
+function renderNetworksDesktop(networks) {
+    const dom = window.NXBTApp.dom;
+    dom.networkList.innerHTML = "";
+    if (!networks.length) {
+        dom.networkList.innerHTML = '<div class="network-list-empty">Keine Netzwerke gefunden</div>';
+        return;
+    }
+
+    networks.forEach((network) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "network-list-item";
+        const meta = [
+            `${network.signal || 0} dBm`,
+            network.secured ? "gesichert" : "offen",
+            network.saved ? "gespeichert" : "",
+            network.active ? "aktiv" : ""
+        ].filter(Boolean).join(" · ");
+        button.innerHTML = `<span></span><small>${meta}</small>`;
+        button.querySelector("span").textContent = network.ssid;
+        button.addEventListener("click", () => {
+            dom.networkSsidInput.value = network.ssid;
+            dom.networkPasswordInput.value = "";
+            dom.networkConnectForm.classList.remove("hidden");
+            dom.networkList.classList.add("hidden");
+            if (network.secured) {
+                dom.networkPasswordInput.focus();
+            }
+        });
+        dom.networkList.appendChild(button);
+    });
+}
+
+function connectNetworkDesktop(event) {
+    event.preventDefault();
+    const dom = window.NXBTApp.dom;
+    const ssid = dom.networkSsidInput.value.trim();
+    if (!ssid) {
+        showNetworkMessage("SSID erforderlich.", "error");
+        return;
+    }
+
+    showNetworkMessage("Verbindung wird hergestellt. Im Hotspot kann die Seite kurz abbrechen.", "info");
+    fetch("/api/wifi/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ssid, password: dom.networkPasswordInput.value })
+    })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.ok) {
+                dom.networkConnectForm.classList.add("hidden");
+                dom.networkConnectForm.reset();
+                showNetworkMessage(`Mit ${data.ssid || ssid} verbunden und gespeichert.`, "success");
+            } else {
+                showNetworkMessage(data.error || "Verbindung fehlgeschlagen.", "error");
+            }
+            refreshNetworkStatus();
+        })
+        .catch((error) => showNetworkMessage(`Fehler: ${error.message}`, "error"));
+}
+
+function cancelNetworkConnectDesktop() {
+    const dom = window.NXBTApp.dom;
+    dom.networkConnectForm.classList.add("hidden");
+    dom.networkConnectForm.reset();
+}

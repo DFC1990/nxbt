@@ -356,6 +356,39 @@
                     <div id="log-entries" class="log-entries"></div>
                 </article>
 
+                <article class="surface dashboard-card" id="network-panel">
+                    <div class="card-header">
+                        <div>
+                            <div class="section-kicker">Netzwerk</div>
+                            <h2>WLAN &amp; Hotspot</h2>
+                        </div>
+                        <div class="meta-stack">
+                            <span class="meta-label">Modus</span>
+                            <strong id="network-mode">-</strong>
+                        </div>
+                    </div>
+                    <div class="status-list network-status-list">
+                        <div class="status-row"><span>WLAN</span><strong id="network-wifi-ssid">Nicht verbunden</strong></div>
+                        <div class="status-row"><span>IP</span><strong id="network-wifi-ip">-</strong></div>
+                        <div class="status-row"><span>Hotspot</span><strong id="network-hotspot-state">-</strong></div>
+                        <div class="status-row"><span>Hotspot-IP</span><strong id="network-hotspot-ip">192.168.4.1:8000</strong></div>
+                    </div>
+                    <div class="button-grid network-actions">
+                        <button id="network-hotspot-only" onclick="useHotspotOnlyDesktop()">Kein WLAN verwenden</button>
+                        <button id="network-scan" onclick="scanNetworksDesktop()">Netzwerke suchen</button>
+                    </div>
+                    <div id="network-message" class="network-message hidden"></div>
+                    <div id="network-list" class="network-list hidden"></div>
+                    <form id="network-connect-form" class="network-connect-form hidden" onsubmit="connectNetworkDesktop(event)">
+                        <input id="network-ssid-input" type="text" placeholder="SSID" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">
+                        <input id="network-password-input" type="password" placeholder="Passwort optional" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">
+                        <div class="button-grid">
+                            <button type="submit">Verbinden</button>
+                            <button type="button" onclick="cancelNetworkConnectDesktop()">Abbrechen</button>
+                        </div>
+                    </form>
+                </article>
+
                 <article class="surface dashboard-card dashboard-card-wide">
                     <div class="card-header">
                         <div>

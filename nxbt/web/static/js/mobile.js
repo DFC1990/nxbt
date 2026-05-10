@@ -12,6 +12,7 @@ const API = {
   wifiConnect: '/api/wifi/connect',
   hotspotStatus: '/api/wifi/hotspot/status',
   hotspotToggle: '/api/wifi/hotspot/toggle',
+  hotspotOnly: '/api/wifi/hotspot-only',
 };
 
 // State
@@ -117,11 +118,15 @@ function cacheElements() {
     stickRightY: document.getElementById('m-stick-right-y'),
 
     // WiFi
+    networkMode: document.getElementById('m-network-mode'),
     wifiSsid: document.getElementById('m-wifi-ssid'),
     wifiIp: document.getElementById('m-wifi-ip'),
     wifiSignal: document.getElementById('m-wifi-signal'),
+    hotspotAddress: document.getElementById('m-hotspot-address'),
     hotspotStatus: document.getElementById('m-hotspot-status'),
     hotspotToggleBtn: document.getElementById('m-hotspot-toggle-btn'),
+    hotspotOnlyBtn: document.getElementById('m-hotspot-only-btn'),
+    networkMessage: document.getElementById('m-network-message'),
     scanBtn: document.getElementById('m-scan-btn'),
     scanLoading: document.getElementById('m-scan-loading'),
     networkList: document.getElementById('m-network-list'),
@@ -594,6 +599,7 @@ function bindVirtualStick(element, stickName, xDisplay, yDisplay) {
 
 function bindWiFi() {
   refs.hotspotToggleBtn.addEventListener('click', toggleHotspot);
+  refs.hotspotOnlyBtn.addEventListener('click', useHotspotOnly);
   refs.scanBtn.addEventListener('click', scanNetworks);
   refs.connectForm.addEventListener('submit', handleConnectSubmit);
   refs.connectCancelBtn.addEventListener('click', cancelConnect);
@@ -607,11 +613,17 @@ function updateWiFiStatus() {
   fetch(API.wifiStatus)
     .then(r => r.json())
     .then(data => {
+      refs.networkMode.textContent = data.mode === 'hotspot_only'
+        ? 'Hotspot-Betrieb'
+        : 'WLAN-Betrieb';
       refs.wifiSsid.textContent = data.ssid && data.connected
-        ? escapeHtml(data.ssid)
+        ? data.ssid
         : (data.connected ? '(Verbunden)' : 'Nicht verbunden');
       refs.wifiIp.textContent = data.ip || '---';
-      refs.wifiSignal.textContent = data.signal !== null ? data.signal + ' dBm' : '---';
+      refs.wifiSignal.textContent = data.signal !== null && data.signal !== undefined ? data.signal + ' dBm' : '---';
+      refs.hotspotAddress.textContent = data.hotspot_active
+        ? `${data.hotspot_ssid || 'NXBT-CONTROL'} · ${data.hotspot_ip || '192.168.4.1'}:8000`
+        : 'Inaktiv';
     })
     .catch(e => console.error('WiFi status fetch failed:', e));
 }
@@ -630,14 +642,43 @@ function toggleHotspot() {
   refs.hotspotToggleBtn.disabled = true;
   fetch(API.hotspotToggle, { method: 'POST' })
     .then(r => r.json())
-    .then(() => updateHotspotStatus())
-    .catch(e => alert('Fehler: ' + e.message))
+    .then(data => {
+      if (!data.ok && data.error) {
+        showNetworkMessage(data.error, 'error');
+      }
+      updateHotspotStatus();
+      updateWiFiStatus();
+    })
+    .catch(e => showNetworkMessage('Fehler: ' + e.message, 'error'))
     .finally(() => {
       refs.hotspotToggleBtn.disabled = false;
     });
 }
 
+function useHotspotOnly() {
+  refs.hotspotOnlyBtn.disabled = true;
+  showNetworkMessage('Hotspot-Betrieb wird aktiviert...', 'info');
+
+  fetch(API.hotspotOnly, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        showNetworkMessage('Hotspot ist aktiv. NXBT bleibt lokal unter 192.168.4.1:8000 erreichbar.', 'success');
+      } else {
+        showNetworkMessage(data.error || 'Hotspot konnte nicht aktiviert werden', 'error');
+      }
+      updateHotspotStatus();
+      updateWiFiStatus();
+    })
+    .catch(e => showNetworkMessage('Fehler: ' + e.message, 'error'))
+    .finally(() => {
+      refs.hotspotOnlyBtn.disabled = false;
+    });
+}
+
 function scanNetworks() {
+  refs.scanLoading.textContent = '';
+  refs.scanLoading.innerHTML = '<p>Suche läuft...</p>';
   refs.scanLoading.classList.remove('hidden');
   refs.networkList.classList.add('hidden');
   refs.scanBtn.disabled = true;
@@ -677,20 +718,25 @@ function renderNetworkList(networks) {
       signalHtml += `<div class="signal-bar" style="height: ${8 + i * 2}px; opacity: ${i < bars ? '1' : '0.3'}"></div>`;
     }
 
-    const lock = net.secured ? '🔒' : '';
+    const lock = net.secured ? 'gesichert' : 'offen';
+    const saved = net.saved ? ' · gespeichert' : '';
+    const active = net.active ? ' · aktiv' : '';
 
     item.innerHTML = `
       <div class="network-info">
         <div class="network-name">${escapeHtml(net.ssid)}</div>
-        <div class="network-signal">${net.signal} dBm <span class="signal-bars">${signalHtml}</span> ${lock}</div>
+        <div class="network-signal">${net.signal} dBm <span class="signal-bars">${signalHtml}</span> ${lock}${saved}${active}</div>
       </div>
     `;
 
     item.addEventListener('click', () => {
       refs.ssidInput.value = net.ssid;
-      refs.pwInput.focus();
+      refs.pwInput.value = '';
       refs.networkList.classList.add('hidden');
       refs.connectForm.classList.remove('hidden');
+      if (net.secured) {
+        refs.pwInput.focus();
+      }
     });
 
     refs.networkList.appendChild(item);
@@ -742,7 +788,7 @@ function handleConnectSubmit(e) {
           updateHotspotStatus();
         }, 2000);
 
-        alert('Erfolgreich verbunden!');
+        showNetworkMessage(`Mit ${data.ssid || ssid} verbunden. Gespeichert fuer den naechsten Start.`, 'success');
       } else {
         showConnectError(data.error || 'Verbindung fehlgeschlagen');
         refs.connectStatus.classList.add('hidden');
@@ -784,6 +830,16 @@ function showConnectError(msg, show = true) {
   }
 }
 
+function showNetworkMessage(msg, type) {
+  refs.networkMessage.textContent = msg;
+  refs.networkMessage.className = 'message' + (type ? ' ' + type : '');
+  if (msg) {
+    refs.networkMessage.classList.remove('hidden');
+  } else {
+    refs.networkMessage.classList.add('hidden');
+  }
+}
+
 // ============================================================================
 // Polling
 // ============================================================================
@@ -792,6 +848,7 @@ function startPolling() {
   setInterval(() => {
     updateMacroStatus();
     updateWiFiStatus();
+    updateHotspotStatus();
     if (controllerIndex !== null) {
       socket.emit('state');
     }

@@ -86,6 +86,23 @@ The above command boots NXBT and an accompanying web server that allows for cont
 
 The webapp itself will be locally accessible at `http://127.0.0.1:8000` or, if you're on the same network as the host computer, http://HOST_COMPUTER_IP:8000. It's also possible to expose your NXBT webapp to the internet, however, you'll need to configure a reverse proxy, which is out of the scope of this readme.
 
+### Raspberry Pi Hotspot and WiFi Mode
+
+On Raspberry Pi OS Bookworm, NXBT can manage WiFi through NetworkManager (`nmcli`). If no WiFi uplink is available, the webapp starts the `NXBT-CONTROL` hotspot and is reachable at:
+
+```text
+http://192.168.4.1:8000/
+http://192.168.4.1:8000/mobile
+```
+
+From the mobile or desktop web UI you can scan for WiFi networks and connect to one, or choose **Kein WLAN verwenden**. That hotspot-only mode is saved in `~/.nxbt/network.json`, keeps `NXBT-CONTROL` active after reboot, and lets the full NXBT webapp run locally over the hotspot without needing internet access. WiFi passwords are stored by NetworkManager, not in NXBT files.
+
+For captive portal behavior on phones, run:
+
+```bash
+sudo bash setup-captive-portal.sh
+```
+
 You should see a webpage similar to the following image:
 
 <div align="center">

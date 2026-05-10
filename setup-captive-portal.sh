@@ -41,8 +41,24 @@ echo ""
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 log_info "Repo-Verzeichnis: $REPO_DIR"
+log_info "Zielsystem: Raspberry Pi OS Bookworm mit NetworkManager/nmcli"
 log_info "Konfiguriert dnsmasq für Captive Portal..."
 echo ""
+
+if ! command -v nmcli &> /dev/null; then
+    log_error "nmcli nicht gefunden. Installiere/aktiviere NetworkManager auf Bookworm."
+    exit 1
+fi
+
+if ! ip link show wlan0 &> /dev/null; then
+    log_error "wlan0 nicht gefunden. Dieses Setup erwartet das Raspberry-Pi-WLAN-Interface wlan0."
+    exit 1
+fi
+
+if ! systemctl is-active --quiet NetworkManager; then
+    log_error "NetworkManager läuft nicht. Aktiviere ihn vor dem Captive-Portal-Setup."
+    exit 1
+fi
 
 # 1. Installiere dnsmasq mit systemd-Support
 log_info "Prüfe dnsmasq..."

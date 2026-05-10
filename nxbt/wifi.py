@@ -12,6 +12,7 @@ When connecting to external WLAN, AP is stopped first.
 """
 
 import logging
+import json
 import os
 import re
 import subprocess
@@ -28,6 +29,9 @@ AP_IP = "192.168.4.1"
 AP_BAND = "bg"      # 2.4 GHz (Pi B+ only has 2.4 GHz)
 AP_CHANNEL = 6      # Fixed channel to avoid scan overhead
 AP_BOOT_DELAY = 3   # Seconds to wait after boot before starting AP
+MODE_HOTSPOT_ONLY = "hotspot_only"
+MODE_WIFI_CLIENT = "wifi_client"
+CONFIG_PATH = os.path.expanduser("~/.nxbt/network.json")
 
 # Shared state (protected by _lock)
 _lock = threading.Lock()
@@ -37,6 +41,70 @@ _scan_cache = {"networks": [], "timestamp": 0, "scanning": False}
 _scan_cache_ttl = 30  # Cache scan results for 30 seconds
 _wifi_status_cache = {"result": None, "timestamp": 0}
 _wifi_status_ttl = 5   # Cache wifi status for 5 seconds (avoids nmcli on every poll)
+
+
+def _invalidate_caches():
+    with _lock:
+        _wifi_status_cache["result"] = None
+        _wifi_status_cache["timestamp"] = 0
+        _scan_cache["timestamp"] = 0
+
+
+def _load_config() -> dict:
+    try:
+        with open(CONFIG_PATH, "r") as fh:
+            config = json.load(fh)
+    except FileNotFoundError:
+        return {"mode": MODE_WIFI_CLIENT}
+    except Exception as exc:
+        log.warning(f"Failed to read network config: {exc}")
+        return {"mode": MODE_WIFI_CLIENT}
+
+    if config.get("mode") not in {MODE_HOTSPOT_ONLY, MODE_WIFI_CLIENT}:
+        config["mode"] = MODE_WIFI_CLIENT
+    return config
+
+
+def _save_config(config: dict) -> None:
+    os.makedirs(os.path.dirname(CONFIG_PATH), mode=0o700, exist_ok=True)
+    tmp_path = CONFIG_PATH + ".tmp"
+    with open(tmp_path, "w") as fh:
+        json.dump(config, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+    os.chmod(tmp_path, 0o600)
+    os.replace(tmp_path, CONFIG_PATH)
+
+
+def get_network_mode() -> str:
+    return _load_config().get("mode", MODE_WIFI_CLIENT)
+
+
+def set_network_mode(mode: str) -> None:
+    if mode not in {MODE_HOTSPOT_ONLY, MODE_WIFI_CLIENT}:
+        raise ValueError(f"Unknown network mode: {mode}")
+    _save_config({"mode": mode})
+
+
+def _split_nmcli_line(line: str) -> list:
+    """Split nmcli -t output, honoring backslash-escaped separators."""
+    fields = []
+    current = []
+    escaped = False
+    for char in line:
+        if escaped:
+            current.append(char)
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == ":":
+            fields.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+    if escaped:
+        current.append("\\")
+    fields.append("".join(current))
+    return fields
 
 
 def _run(args: list, timeout: int = 10) -> tuple:
@@ -174,6 +242,11 @@ def maybe_start_ap() -> bool:
     """
     time.sleep(AP_BOOT_DELAY)
 
+    if get_network_mode() == MODE_HOTSPOT_ONLY:
+        log.info("Hotspot-only mode enabled, starting AP")
+        result = start_ap()
+        return result.get("ok", False)
+
     if has_uplink_connection():
         log.info("Uplink connection available, AP not needed")
         return False
@@ -226,6 +299,24 @@ def stop_ap() -> dict:
     return result
 
 
+def use_hotspot_only() -> dict:
+    """Persist and activate hotspot-only mode."""
+    set_network_mode(MODE_HOTSPOT_ONLY)
+    result = start_ap()
+    _invalidate_caches()
+    if not result.get("ok"):
+        result["mode"] = MODE_HOTSPOT_ONLY
+        return result
+    return {
+        "ok": True,
+        "mode": MODE_HOTSPOT_ONLY,
+        "ssid": AP_SSID,
+        "ip": AP_IP,
+        "password": AP_PASSWORD,
+        "backend": result.get("backend"),
+    }
+
+
 def ap_status() -> dict:
     """Return current hotspot state without side-effects.
 
@@ -239,6 +330,7 @@ def ap_status() -> dict:
             "ssid": AP_SSID if _hotspot_active else None,
             "ip": AP_IP if _hotspot_active else None,
             "backend": backend,
+            "mode": get_network_mode(),
         }
 
 
@@ -254,38 +346,69 @@ def get_wifi_status() -> dict:
             return _wifi_status_cache["result"]
 
     try:
+        backend = detect_backend()
         code, out, _ = _run(
             ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"],
             timeout=5
         )
         if code != 0:
-            return {"connected": False, "error": "nmcli failed"}
+            return {
+                "mode": get_network_mode(),
+                "connected": False,
+                "ssid": None,
+                "ip": None,
+                "signal": None,
+                "hotspot_active": ap_status().get("active", False),
+                "hotspot_ssid": AP_SSID,
+                "hotspot_ip": AP_IP,
+                "backend": backend,
+                "error": "nmcli failed",
+            }
 
         # Parse output: lines like "wlan0:wifi:connected:MyNetwork"
         for line in out.strip().split("\n"):
             if not line.startswith("wlan0"):
                 continue
-            parts = line.split(":")
+            parts = _split_nmcli_line(line)
             if len(parts) >= 4 and parts[2] == "connected":
                 ssid = parts[3] if parts[3] else None
 
                 # Get IP and signal
                 ip_addr = _get_ip_address()
                 signal = _get_wifi_signal()
+                hotspot_active = ssid == AP_SSID
 
                 result = {
-                    "connected": True,
-                    "ssid": ssid,
+                    "mode": get_network_mode(),
+                    "connected": not hotspot_active,
+                    "ssid": None if hotspot_active else ssid,
                     "ip": ip_addr,
-                    "signal": signal,
+                    "signal": None if hotspot_active else signal,
                     "interface": "wlan0",
+                    "hotspot_active": hotspot_active or ap_status().get("active", False),
+                    "hotspot_ssid": AP_SSID,
+                    "hotspot_ip": AP_IP,
+                    "backend": backend,
+                    "saved": bool(ssid and _nmcli_connection_exists(ssid)),
                 }
                 with _lock:
                     _wifi_status_cache["result"] = result
                     _wifi_status_cache["timestamp"] = time.time()
                 return result
 
-        result = {"connected": False, "ssid": None, "ip": None, "signal": None}
+        result = {
+            "mode": get_network_mode(),
+            "connected": False,
+            "ssid": None,
+            "ip": None,
+            "signal": None,
+            "interface": "wlan0",
+            "hotspot_active": ap_status().get("active", False),
+            "hotspot_ssid": AP_SSID,
+            "hotspot_ip": AP_IP,
+            "backend": backend,
+            "saved": False,
+        }
         with _lock:
             _wifi_status_cache["result"] = result
             _wifi_status_cache["timestamp"] = time.time()
@@ -293,7 +416,15 @@ def get_wifi_status() -> dict:
 
     except Exception as e:
         log.warning(f"Error getting WiFi status: {e}")
-        return {"connected": False, "error": str(e)}
+        return {
+            "mode": get_network_mode(),
+            "connected": False,
+            "hotspot_active": ap_status().get("active", False),
+            "hotspot_ssid": AP_SSID,
+            "hotspot_ip": AP_IP,
+            "backend": detect_backend(),
+            "error": str(e),
+        }
 
 
 def scan_networks(timeout: int = 8) -> list:
@@ -360,10 +491,15 @@ def connect_network(ssid: str, password: str, timeout: int = 30) -> dict:
     else:
         result = {"ok": False, "error": "No WiFi backend for connection"}
 
+    if result.get("ok"):
+        set_network_mode(MODE_WIFI_CLIENT)
+        _invalidate_caches()
+
     # If connection failed and AP was active, restart AP
     if not result.get("ok") and ap_was_active:
         log.warning(f"Connection to '{ssid}' failed, restarting AP")
         start_ap()
+        _invalidate_caches()
 
     return result
 
@@ -450,11 +586,36 @@ def _nmcli_stop_ap() -> dict:
     return {"ok": True}
 
 
+def _nmcli_connection_exists(name: str) -> bool:
+    code, out, _ = _run(
+        ["nmcli", "-t", "-f", "NAME", "connection", "show"],
+        timeout=5
+    )
+    if code != 0:
+        return False
+    return name in {_split_nmcli_line(line)[0] for line in out.splitlines() if line}
+
+
+def _nmcli_saved_connections() -> set:
+    code, out, _ = _run(
+        ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"],
+        timeout=5
+    )
+    if code != 0:
+        return set()
+    saved = set()
+    for line in out.splitlines():
+        parts = _split_nmcli_line(line)
+        if len(parts) >= 2 and parts[1] == "802-11-wireless":
+            saved.add(parts[0])
+    return saved
+
+
 def _nmcli_scan(timeout: int) -> list:
     """Scan for networks using nmcli."""
     code, out, _ = _run([
-        "nmcli", "-t", "-f",
-        "SSID,SIGNAL,SECURITY,FREQ",
+        "nmcli", "-t", "--escape", "yes", "-f",
+        "SSID,SIGNAL,SECURITY,FREQ,IN-USE",
         "device", "wifi", "list",
         "--rescan", "yes"
     ], timeout=timeout)
@@ -463,11 +624,12 @@ def _nmcli_scan(timeout: int) -> list:
         log.warning("nmcli scan failed")
         return []
 
-    networks = []
+    saved_connections = _nmcli_saved_connections()
+    networks_by_ssid = {}
     for line in out.strip().split("\n"):
         if not line:
             continue
-        parts = line.split(":")
+        parts = _split_nmcli_line(line)
         if len(parts) >= 4:
             ssid = parts[0].strip()
             try:
@@ -476,16 +638,24 @@ def _nmcli_scan(timeout: int) -> list:
                 signal = 0
             security = parts[2].strip()
             freq = parts[3].strip() if len(parts) > 3 else ""
+            active = len(parts) > 4 and parts[4].strip() == "*"
 
             if ssid:  # Skip hidden networks
-                networks.append({
+                existing = networks_by_ssid.get(ssid)
+                if existing and existing.get("signal", 0) >= signal:
+                    continue
+                networks_by_ssid[ssid] = {
                     "ssid": ssid,
                     "signal": signal,
                     "secured": bool(security) and security != "--",
+                    "security": security if security and security != "--" else "",
                     "freq": freq,
-                })
+                    "saved": ssid in saved_connections,
+                    "active": active,
+                }
 
     # Sort by signal (descending)
+    networks = list(networks_by_ssid.values())
     networks.sort(key=lambda x: x["signal"], reverse=True)
 
     with _lock:
@@ -497,23 +667,32 @@ def _nmcli_scan(timeout: int) -> list:
 
 def _nmcli_connect(ssid: str, password: str, timeout: int) -> dict:
     """Connect to a WiFi network using nmcli."""
-    # Create connection
-    code, out, err = _run([
-        "nmcli", "device", "wifi", "connect", ssid,
-        "password", password
-    ], timeout=timeout)
+    # Create or activate connection. Empty password supports open networks.
+    args = ["nmcli", "device", "wifi", "connect", ssid]
+    if password:
+        args.extend(["password", password])
+
+    code, out, err = _run(args, timeout=timeout)
 
     if code != 0:
         msg = err.strip() or out.strip() or "Connection failed"
         log.warning(f"Failed to connect to '{ssid}': {msg}")
-        return {"ok": False, "error": msg}
+        return {"ok": False, "mode": get_network_mode(), "ssid": ssid, "error": msg}
+
+    _run(["nmcli", "connection", "modify", ssid, "connection.autoconnect", "yes"], timeout=5)
 
     # Get IP address
     time.sleep(1)  # Wait for DHCP
     ip = _get_ip_address()
 
     log.info(f"Connected to '{ssid}' with IP {ip}")
-    return {"ok": True, "ip": ip or "unknown"}
+    return {
+        "ok": True,
+        "mode": MODE_WIFI_CLIENT,
+        "ssid": ssid,
+        "ip": ip or "unknown",
+        "saved": True,
+    }
 
 
 # ============================================================================
@@ -593,13 +772,18 @@ def start_background_monitor():
 
                 current_connected = has_uplink_connection()
                 ap_active = ap_status().get("active", False)
+                mode = get_network_mode()
 
                 # If AP is active and uplink appeared, stop AP
-                if ap_active and current_connected:
+                if ap_active and current_connected and mode != MODE_HOTSPOT_ONLY:
                     log.info("Uplink reconnected, stopping AP")
                     stop_ap()
 
                 # If AP is inactive and uplink disappeared, start AP
+                elif not ap_active and mode == MODE_HOTSPOT_ONLY:
+                    log.info("Hotspot-only mode active, starting AP")
+                    start_ap()
+
                 elif not ap_active and not current_connected and last_state != current_connected:
                     log.info("Uplink lost, starting AP")
                     start_ap()

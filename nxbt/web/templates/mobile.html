@@ -205,6 +205,10 @@ B 0.3s
         <h2>Netzwerk</h2>
         <div class="wifi-status">
           <div class="status-line">
+            <span class="label">Modus:</span>
+            <span id="m-network-mode" class="value">---</span>
+          </div>
+          <div class="status-line">
             <span class="label">WLAN:</span>
             <span id="m-wifi-ssid" class="value">---</span>
           </div>
@@ -215,6 +219,10 @@ B 0.3s
           <div class="status-line">
             <span class="label">Signal:</span>
             <span id="m-wifi-signal" class="value muted">---</span>
+          </div>
+          <div class="status-line">
+            <span class="label">Hotspot:</span>
+            <span id="m-hotspot-address" class="value muted">---</span>
           </div>
         </div>
       </section>
@@ -227,7 +235,9 @@ B 0.3s
           <span id="m-hotspot-status" class="value">--</span>
         </div>
         <button id="m-hotspot-toggle-btn" class="btn btn-secondary btn-block">Hotspot einschalten</button>
-        <p class="hint">Automatisch aktiv, wenn keine WLAN-Verbindung vorhanden ist.</p>
+        <button id="m-hotspot-only-btn" class="btn btn-primary btn-block">Kein WLAN verwenden</button>
+        <p id="m-network-message" class="message hidden"></p>
+        <p class="hint">Hotspot-Betrieb: NXBT bleibt lokal unter 192.168.4.1:8000 erreichbar.</p>
       </section>
 
       <!-- WiFi Connect -->
@@ -244,7 +254,7 @@ B 0.3s
         </div>
 
         <div id="m-connect-status" class="connect-status hidden">
-          <p class="muted">⏳ Verbindung wird hergestellt...</p>
+          <p class="muted">Verbindung wird hergestellt. Wenn du gerade im Hotspot bist, kann diese Seite kurz abbrechen.</p>
           <button type="button" id="m-connect-cancel-btn" class="btn btn-secondary btn-block">Abbrechen</button>
         </div>
 

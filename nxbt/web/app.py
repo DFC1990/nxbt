@@ -1381,14 +1381,34 @@ def hotspot_toggle():
     return jsonify(result), status_code
 
 
-# Captive portal redirects (for iOS/Android WiFi detection)
+@app.route('/api/wifi/hotspot-only', methods=['POST'])
+def hotspot_only():
+    """Persist hotspot-only mode and keep NXBT reachable over its AP."""
+    def _hotspot_only_in_thread():
+        return nxbt_wifi.use_hotspot_only()
+
+    try:
+        result = eventlet.tpool.execute(_hotspot_only_in_thread)
+        status_code = 200 if result.get('ok') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        log.warning(f"Hotspot-only activation failed: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# Captive portal redirects (Android/iOS/macOS/Windows WiFi detection)
 @app.route('/generate_204')
+@app.route('/gen_204')
+@app.route('/connecttest.txt')
+@app.route('/ncsi.txt')
+@app.route('/redirect')
 def captive_portal_android():
-    """Android captive portal detection endpoint."""
-    return '', 204
+    """Captive portal detection endpoint."""
+    return redirect('/mobile')
 
 
 @app.route('/hotspot-detect.html')
+@app.route('/library/test/success.html')
 def captive_portal_apple():
     """Apple (iOS/macOS) captive portal detection endpoint."""
     return redirect('/mobile')
