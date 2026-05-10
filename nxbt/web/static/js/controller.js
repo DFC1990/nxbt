@@ -2,6 +2,7 @@ function createProController() {
     let dom = window.NXBTApp.dom;
     dom.controllerSelection.classList.add('hidden');
     dom.loader.classList.remove('hidden');
+    dom.loaderText.innerHTML = 'Controller wird erstellt...';
     window.NXBTApp.socket.emit('web_create_pro_controller');
 }
 
@@ -14,6 +15,7 @@ function shutdownController() {
 }
 
 function recreateProController() {
+    window.NXBTApp.dom.loaderText.innerHTML = 'Controller wird neu erstellt...';
     window.NXBTApp.socket.emit('web_create_pro_controller');
 }
 
@@ -348,6 +350,12 @@ function checkForLoad() {
                 eventLoop();
                 refreshLiveStatusPanel();
             }, 1000);
+        } else if (controllerState === window.NXBTApp.enums.ControllerState.CRASHED) {
+            clearInterval(window.NXBTApp.state.checkForLoadInterval);
+            let errors = state[index].errors || 'Controller konnte nicht gestartet werden.';
+            window.NXBTApp.dom.loader.classList.add('hidden');
+            window.NXBTApp.dom.controllerSelection.classList.remove('hidden');
+            displayError(errors);
         }
     }
 }
@@ -398,7 +406,7 @@ function initializeSocket() {
         window.NXBTApp.socket.emit('state');
     }, 1000);
 
-    window.NXBTApp.socket.on('state', function(state) {
+    window.NXBTApp.socket.on('state_update', function(state) {
         window.NXBTApp.state.state = state;
     });
 
@@ -415,10 +423,18 @@ function initializeSocket() {
 
     window.NXBTApp.socket.on('create_pro_controller', function(index) {
         window.NXBTApp.state.nxbtControllerIndex = index;
+        window.NXBTApp.dom.loaderText.innerHTML = 'initializing';
+        if (window.NXBTApp.state.checkForLoadInterval) {
+            clearInterval(window.NXBTApp.state.checkForLoadInterval);
+        }
         window.NXBTApp.state.checkForLoadInterval = setInterval(checkForLoad, 1000);
     });
 
     window.NXBTApp.socket.on('error', function(errorMessage) {
+        if (!window.NXBTApp.dom.loader.classList.contains('hidden')) {
+            window.NXBTApp.dom.loader.classList.add('hidden');
+            window.NXBTApp.dom.controllerSelection.classList.remove('hidden');
+        }
         displayError(errorMessage);
     });
 }
